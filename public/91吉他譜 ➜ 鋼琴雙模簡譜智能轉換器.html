@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>91吉他譜 ➜ 鋼琴雙模簡譜智能轉換器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script>
+    window.APP_LOCAL_SERVER = "http://localhost:5173";
+  </script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="runtime-warning" id="fileProtocolNotice" hidden>
+    這個工具需要透過本機伺服器使用。請在此資料夾執行 npm start，然後開啟 http://localhost:5173/。
+  </div>
+  <script>
+    if (window.location.protocol === "file:") {
+      const notice = document.getElementById("fileProtocolNotice");
+      if (notice) notice.hidden = false;
+      fetch(`${window.APP_LOCAL_SERVER}/`, { mode: "no-cors" })
+        .then(() => window.location.replace(`${window.APP_LOCAL_SERVER}/`))
+        .catch(() => {});
+    }
+  </script>
+  <div class="app-shell">
+    <aside class="workspace-panel">
+      <header class="brand-row">
+        <div>
+          <h1>91吉他譜 ➜ 鋼琴雙模簡譜</h1>
+          <p>搜尋 91pu、辨識圖片、轉成 A4 鋼琴簡譜。</p>
+        </div>
+        <span class="status-pill" id="networkStatus">就緒</span>
+      </header>
+
+      <section class="control-block">
+        <label for="searchInput">91pu 全站搜尋</label>
+        <div class="input-row">
+          <input id="searchInput" type="search" placeholder="歌曲、歌手、作詞或作曲">
+          <button class="icon-button primary" id="searchButton" type="button">
+            <i data-lucide="search"></i><span>搜尋</span>
+          </button>
+        </div>
+        <div class="result-list" id="searchResults"></div>
+      </section>
+
+      <section class="control-block">
+        <label>快速操作</label>
+        <div class="quick-actions">
+          <button class="icon-button" id="demoSongButton" type="button">
+            <i data-lucide="sparkles"></i><span>載入範例歌曲</span>
+          </button>
+          <button class="icon-button" id="clearWorkspaceButton" type="button">
+            <i data-lucide="eraser"></i><span>清空草稿</span>
+          </button>
+        </div>
+        <p class="hint-line">草稿會自動保存在這台裝置，重新整理後可繼續編修。</p>
+      </section>
+
+      <section class="control-block">
+        <div class="label-row">
+          <label for="imageInput">貼上或拖入圖片</label>
+          <button class="icon-button" id="ocrButton" type="button">
+            <i data-lucide="scan-text"></i><span>辨識</span>
+          </button>
+        </div>
+        <div class="drop-zone" id="dropZone" role="button" tabindex="0">
+          <input id="imageInput" type="file" accept="image/*" hidden>
+          <img id="imagePreview" alt="已載入的譜面圖片" hidden>
+          <div class="drop-copy">
+            <i data-lucide="image-plus"></i>
+            <span>貼上截圖，或點選選取圖片</span>
+          </div>
+        </div>
+        <div class="sample-strip">
+          <button class="sample-button" type="button" data-sample="./samples/sample-guitar.jpg">
+            <img src="./samples/sample-guitar.jpg" alt="">
+            <span>91吉他譜</span>
+          </button>
+          <button class="sample-button" type="button" data-sample="./samples/sample-piano-chord.jpg">
+            <img src="./samples/sample-piano-chord.jpg" alt="">
+            <span>和弦簡譜</span>
+          </button>
+          <button class="sample-button" type="button" data-sample="./samples/sample-piano-number.jpg">
+            <img src="./samples/sample-piano-number.jpg" alt="">
+            <span>伴奏簡譜</span>
+          </button>
+        </div>
+        <p class="hint-line" id="ocrStatus"></p>
+      </section>
+
+      <section class="control-block">
+        <label>轉譜檢查</label>
+        <div class="score-stats" id="scoreStats"></div>
+      </section>
+
+      <section class="control-block">
+        <div class="label-row">
+          <label>歌曲資料</label>
+          <button class="icon-button" id="parseButton" type="button">
+            <i data-lucide="refresh-cw"></i><span>轉譜</span>
+          </button>
+        </div>
+        <div class="compact-grid">
+          <label for="titleInput">歌名</label>
+          <input id="titleInput" type="text">
+          <label for="artistInput">演唱</label>
+          <input id="artistInput" type="text">
+          <label for="lyricistInput">作詞</label>
+          <input id="lyricistInput" type="text">
+          <label for="composerInput">作曲</label>
+          <input id="composerInput" type="text">
+          <label for="originalKeyInput">原調</label>
+          <input id="originalKeyInput" type="text" placeholder="Bb">
+          <label for="playKeyInput">選調</label>
+          <input id="playKeyInput" type="text" placeholder="G">
+          <label for="tempoInput">速度</label>
+          <input id="tempoInput" type="text" placeholder="86">
+          <label for="beatInput">拍號</label>
+          <input id="beatInput" type="text" placeholder="4/4">
+        </div>
+      </section>
+
+      <section class="control-block source-block">
+        <label for="sourceText">91pu 和弦/歌詞內容</label>
+        <textarea id="sourceText" spellcheck="false" placeholder="[前奏] |Cmaj7 |D |Bm7 |Em |
+1.親愛的你躲在哪裡發呆    有甚麼心事還無法釋懷"></textarea>
+      </section>
+    </aside>
+
+    <main class="preview-panel">
+      <div class="toolbar">
+        <div class="segmented" aria-label="預覽模式">
+          <button id="showBothButton" class="active" type="button">雙頁</button>
+          <button id="showAccompanimentButton" type="button">伴奏簡譜</button>
+          <button id="showChordButton" type="button">和弦簡譜</button>
+        </div>
+        <div class="download-actions">
+          <button class="icon-button" type="button" data-download="accompaniment-jpg">
+            <i data-lucide="image-down"></i><span>伴奏 JPG</span>
+          </button>
+          <button class="icon-button" type="button" data-download="accompaniment-pdf">
+            <i data-lucide="file-down"></i><span>伴奏 PDF</span>
+          </button>
+          <button class="icon-button" type="button" data-download="chord-jpg">
+            <i data-lucide="image-down"></i><span>和弦 JPG</span>
+          </button>
+          <button class="icon-button" type="button" data-download="chord-pdf">
+            <i data-lucide="file-down"></i><span>和弦 PDF</span>
+          </button>
+          <button class="icon-button primary" type="button" data-download="both-pdf">
+            <i data-lucide="files"></i><span>雙頁 PDF</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="preview-grid show-both" id="previewGrid">
+        <article class="paper score-paper accompaniment-mode" id="sheet-accompaniment"></article>
+        <article class="paper score-paper chord-mode" id="sheet-chord"></article>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

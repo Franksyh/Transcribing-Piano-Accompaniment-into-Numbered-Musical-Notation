@@ -1,0 +1,7 @@
+.netlify/
+node_modules/
+npm-debug.log*
+*.tmp
+server.log
+server.err.log
+verification-*.png
