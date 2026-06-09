@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="鋼琴簡譜">
+  <rect width="512" height="512" rx="96" fill="#0f766e"/>
+  <path d="M112 126h288c22 0 40 18 40 40v180c0 22-18 40-40 40H112c-22 0-40-18-40-40V166c0-22 18-40 40-40z" fill="#ffffff"/>
+  <path d="M120 174h272v50H120zm0 74h272v50H120z" fill="#d9f0ec"/>
+  <path d="M137 324h238" stroke="#17202b" stroke-width="18" stroke-linecap="round"/>
+  <path d="M172 152v132m56-132v132m56-132v132m56-132v132" stroke="#17202b" stroke-width="18" stroke-linecap="round"/>
+  <path d="M138 352c36-34 71-34 106 0s70 34 105 0" fill="none" stroke="#0f766e" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="394" cy="334" r="24" fill="#0f766e"/>
+</svg>

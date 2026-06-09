@@ -368,6 +368,119 @@ textarea:focus,
   color: #b42318;
 }
 
+.remote-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.remote-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.remote-header strong {
+  display: block;
+  color: #17202b;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.remote-header span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.remote-badge {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e7f6f3;
+  color: var(--teal-dark) !important;
+  font-size: 11px !important;
+  font-weight: 900;
+  margin-top: 0 !important;
+}
+
+.remote-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+
+.remote-link-row input {
+  min-width: 0;
+  height: 38px;
+  font-size: 12px;
+  color: #344054;
+  background: #fff;
+}
+
+.remote-grid {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.qr-card {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.qr-card canvas {
+  width: 136px;
+  height: 136px;
+  image-rendering: pixelated;
+}
+
+.qr-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.remote-steps {
+  display: grid;
+  gap: 7px;
+}
+
+.remote-steps div {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.remote-steps svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--teal);
+  margin-top: 1px;
+}
+
+.install-button {
+  width: 100%;
+}
+
 .score-stats {
   display: grid;
   gap: 8px;
@@ -773,6 +886,15 @@ textarea:focus,
   .quick-actions,
   .stat-grid {
     grid-template-columns: 1fr;
+  }
+
+  .remote-link-row,
+  .remote-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .remote-link-row .icon-button {
+    width: 100%;
   }
 
   .segmented {

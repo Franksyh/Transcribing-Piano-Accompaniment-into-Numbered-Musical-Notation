@@ -4,11 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>91吉他譜 ➜ 鋼琴雙模簡譜智能轉換器</title>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/app-icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
   <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script>
@@ -63,6 +67,38 @@
         <div class="api-health" id="apiHealth">
           <i data-lucide="activity"></i>
           <span>正在連線動態 API</span>
+        </div>
+        <div class="remote-panel" id="remotePanel">
+          <div class="remote-header">
+            <div>
+              <strong>遠端連線</strong>
+              <span>手機、電腦、網頁共用同一個線上版本</span>
+            </div>
+            <span class="remote-badge" id="remoteDeviceBadge">Web</span>
+          </div>
+          <div class="remote-link-row">
+            <input id="remoteUrlInput" type="text" readonly aria-label="遠端連線網址">
+            <button class="icon-button" id="copyRemoteUrlButton" type="button">
+              <i data-lucide="copy"></i><span>複製</span>
+            </button>
+            <button class="icon-button" id="openRemoteUrlButton" type="button">
+              <i data-lucide="external-link"></i><span>開啟</span>
+            </button>
+          </div>
+          <div class="remote-grid">
+            <div class="qr-card">
+              <canvas id="remoteQrCanvas" width="136" height="136" aria-label="遠端連線 QR Code"></canvas>
+              <span>手機掃描</span>
+            </div>
+            <div class="remote-steps">
+              <div><i data-lucide="smartphone"></i><span>手機：掃 QR 或開啟連結</span></div>
+              <div><i data-lucide="monitor"></i><span>電腦：複製網址到瀏覽器</span></div>
+              <div><i data-lucide="globe-2"></i><span>網頁：Netlify Functions 遠端 API</span></div>
+            </div>
+          </div>
+          <button class="icon-button install-button" id="installAppButton" type="button" hidden>
+            <i data-lucide="download"></i><span>安裝到裝置</span>
+          </button>
         </div>
         <p class="hint-line">草稿會自動保存在這台裝置，重新整理後可繼續編修。</p>
       </section>

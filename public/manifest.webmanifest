@@ -1,0 +1,19 @@
+{
+  "name": "91吉他譜轉鋼琴雙模簡譜",
+  "short_name": "鋼琴簡譜",
+  "description": "搜尋 91pu 吉他譜並轉成鋼琴伴奏簡譜與和弦簡譜。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef2f5",
+  "theme_color": "#0f766e",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "./icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

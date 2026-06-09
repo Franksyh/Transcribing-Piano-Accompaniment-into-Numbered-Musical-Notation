@@ -6,11 +6,14 @@ const state = {
 };
 
 const DRAFT_KEY = "piano-number-score-translator:draft:v2";
+const REMOTE_APP_URL = "https://piano-number-score-translator.netlify.app/";
 const DEMO_SONG = {
   id: "7086",
   query: "永不失聯的愛",
   url: "https://www.91pu.com.tw/song/2017/0701/7086.html"
 };
+
+let deferredInstallPrompt = null;
 
 const NOTE_TO_SEMITONE = {
   C: 0,
@@ -59,6 +62,12 @@ function bindElements() {
     "dropZone",
     "demoSongButton",
     "clearWorkspaceButton",
+    "remoteDeviceBadge",
+    "remoteUrlInput",
+    "copyRemoteUrlButton",
+    "openRemoteUrlButton",
+    "remoteQrCanvas",
+    "installAppButton",
     "imageInput",
     "imagePreview",
     "ocrButton",
@@ -92,6 +101,9 @@ function bindEvents() {
   });
   els.demoSongButton.addEventListener("click", loadDemoSong);
   els.clearWorkspaceButton.addEventListener("click", clearWorkspace);
+  els.copyRemoteUrlButton.addEventListener("click", copyRemoteUrl);
+  els.openRemoteUrlButton.addEventListener("click", openRemoteUrl);
+  els.installAppButton.addEventListener("click", installApp);
 
   els.dropZone.addEventListener("click", () => els.imageInput.click());
   els.dropZone.addEventListener("keydown", (event) => {
@@ -152,6 +164,8 @@ function bindEvents() {
 
   checkApiHealth();
   window.setInterval(checkApiHealth, 60000);
+  setupRemoteAccess();
+  setupPwa();
 }
 
 async function checkApiHealth() {
@@ -175,6 +189,101 @@ async function checkApiHealth() {
   }
 
   refreshIcons();
+}
+
+function setupRemoteAccess() {
+  const remoteUrl = getRemoteUrl();
+  els.remoteUrlInput.value = remoteUrl;
+
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const isRemote = /^https?:\/\/(?!localhost|127\.0\.0\.1)/i.test(location.href);
+  els.remoteDeviceBadge.textContent = isMobile ? "手機版" : isRemote ? "網頁版" : "電腦版";
+
+  renderRemoteQr(remoteUrl);
+}
+
+function getRemoteUrl() {
+  if (/piano-number-score-translator\.netlify\.app$/i.test(location.host)) {
+    return `${location.origin}/`;
+  }
+  return REMOTE_APP_URL;
+}
+
+async function renderRemoteQr(remoteUrl) {
+  if (!els.remoteQrCanvas) return;
+
+  try {
+    if (window.QRCode?.toCanvas) {
+      await window.QRCode.toCanvas(els.remoteQrCanvas, remoteUrl, {
+        margin: 1,
+        width: 136,
+        errorCorrectionLevel: "M",
+        color: {
+          dark: "#17202b",
+          light: "#ffffff"
+        }
+      });
+      return;
+    }
+  } catch {
+    // Draw a readable fallback below if the QR library fails to load.
+  }
+
+  const ctx = els.remoteQrCanvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 136, 136);
+  ctx.fillStyle = "#17202b";
+  ctx.font = "700 12px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("複製連結", 68, 60);
+  ctx.fillText("開啟遠端", 68, 78);
+}
+
+async function copyRemoteUrl() {
+  const remoteUrl = els.remoteUrlInput.value || getRemoteUrl();
+  try {
+    await navigator.clipboard.writeText(remoteUrl);
+    setStatus("已複製遠端連結");
+  } catch {
+    els.remoteUrlInput.select();
+    document.execCommand("copy");
+    setStatus("已複製遠端連結");
+  }
+}
+
+function openRemoteUrl() {
+  window.open(els.remoteUrlInput.value || getRemoteUrl(), "_blank", "noopener,noreferrer");
+}
+
+function setupPwa() {
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    els.installAppButton.hidden = false;
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    els.installAppButton.hidden = true;
+    setStatus("已安裝到裝置");
+  });
+}
+
+async function installApp() {
+  if (!deferredInstallPrompt) {
+    setStatus("此瀏覽器可從選單加入主畫面", "warn");
+    return;
+  }
+
+  deferredInstallPrompt.prompt();
+  const choice = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  els.installAppButton.hidden = true;
+  setStatus(choice.outcome === "accepted" ? "已開始安裝" : "已取消安裝");
 }
 
 function loadDemoSong() {
