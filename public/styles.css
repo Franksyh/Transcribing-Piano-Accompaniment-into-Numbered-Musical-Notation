@@ -325,6 +325,49 @@ textarea:focus,
   min-width: 0;
 }
 
+.api-health {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 7px 9px;
+  border: 1px solid #c7d1dc;
+  border-radius: 8px;
+  background: #fbfcfd;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.api-health svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: #667085;
+}
+
+.api-health.ok {
+  border-color: #b8ddd5;
+  background: #eefaf7;
+  color: #11634f;
+}
+
+.api-health.ok svg {
+  color: var(--teal);
+}
+
+.api-health.error {
+  border-color: #f4b9b4;
+  background: #fff5f4;
+  color: #b42318;
+}
+
+.api-health.error svg {
+  color: #b42318;
+}
+
 .score-stats {
   display: grid;
   gap: 8px;

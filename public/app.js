@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function bindElements() {
   [
     "networkStatus",
+    "apiHealth",
     "searchInput",
     "searchButton",
     "searchResults",
@@ -148,6 +149,32 @@ function bindEvents() {
   document.querySelectorAll("[data-download]").forEach((button) => {
     button.addEventListener("click", () => handleDownload(button.dataset.download));
   });
+
+  checkApiHealth();
+  window.setInterval(checkApiHealth, 60000);
+}
+
+async function checkApiHealth() {
+  if (!els.apiHealth) return;
+
+  try {
+    const response = await fetch("/api/health", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "API offline");
+
+    const time = new Date(data.generatedAt || Date.now()).toLocaleTimeString("zh-TW", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+    els.apiHealth.className = "api-health ok";
+    els.apiHealth.innerHTML = `<i data-lucide="activity"></i><span>動態 API 已連線：${escapeHtml(data.mode || "server")} · ${time}</span>`;
+  } catch {
+    els.apiHealth.className = "api-health error";
+    els.apiHealth.innerHTML = `<i data-lucide="circle-alert"></i><span>動態 API 無法連線，搜尋與匯入可能無法使用。</span>`;
+  }
+
+  refreshIcons();
 }
 
 function loadDemoSong() {

@@ -34,6 +34,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (url.pathname === "/api/health") {
+      handleHealth(res);
+      return;
+    }
+
     await serveStatic(url.pathname, res);
   } catch (error) {
     sendJson(res, 500, { error: error.message || "Server error" });
@@ -147,6 +152,16 @@ async function handleSong(url, res) {
     sourceText,
     brush: decodedBrush || null,
     url: referer
+  });
+}
+
+function handleHealth(res) {
+  sendJson(res, 200, {
+    ok: true,
+    mode: "local-node",
+    service: "91pu-piano-score-converter",
+    dynamicApis: ["/api/search", "/api/song", "/api/health"],
+    generatedAt: new Date().toISOString()
   });
 }
 
