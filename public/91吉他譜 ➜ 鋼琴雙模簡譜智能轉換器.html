@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="./styles.css">
   <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  <script defer src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script>
@@ -93,8 +94,36 @@
             <div class="remote-steps">
               <div><i data-lucide="smartphone"></i><span>手機：掃 QR 或開啟連結</span></div>
               <div><i data-lucide="monitor"></i><span>電腦：複製網址到瀏覽器</span></div>
-              <div><i data-lucide="globe-2"></i><span>網頁：Netlify Functions 遠端 API</span></div>
+              <div><i data-lucide="globe-2"></i><span>網頁：雲端動態 API</span></div>
             </div>
+          </div>
+          <div class="collab-panel" id="collabPanel">
+            <div class="collab-header">
+              <div>
+                <strong>多人連線</strong>
+                <span>建立房間後，其他使用者可同步編輯譜面內容。</span>
+              </div>
+              <span class="collab-status" id="collabStatus">未連線</span>
+            </div>
+            <div class="collab-controls">
+              <input id="roomCodeInput" type="text" maxlength="12" placeholder="房號" aria-label="多人連線房號">
+              <button class="icon-button" id="createRoomButton" type="button">
+                <i data-lucide="users-round"></i><span>建立房間</span>
+              </button>
+              <button class="icon-button" id="joinRoomButton" type="button">
+                <i data-lucide="log-in"></i><span>加入</span>
+              </button>
+              <button class="icon-button danger" id="leaveRoomButton" type="button" hidden>
+                <i data-lucide="log-out"></i><span>離開</span>
+              </button>
+            </div>
+            <div class="collab-share-row">
+              <input id="roomShareUrlInput" type="text" readonly aria-label="多人房間邀請連結">
+              <button class="icon-button" id="copyRoomUrlButton" type="button">
+                <i data-lucide="copy"></i><span>複製邀請</span>
+              </button>
+            </div>
+            <p class="collab-hint">歌名、調性、和弦文字與預覽模式會在已連線裝置間自動同步。</p>
           </div>
           <button class="icon-button install-button" id="installAppButton" type="button" hidden>
             <i data-lucide="download"></i><span>安裝到裝置</span>

@@ -7,6 +7,9 @@ const state = {
 
 const DRAFT_KEY = "piano-number-score-translator:draft:v2";
 const REMOTE_APP_URL = "https://piano-number-score-translator.netlify.app/";
+const PEERJS_SRC = "https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js";
+const COLLAB_APP_ID = "piano-number-score-translator";
+const COLLAB_PEER_PREFIX = "piano-score-room-";
 const DEMO_SONG = {
   id: "7086",
   query: "永不失聯的愛",
@@ -14,6 +17,15 @@ const DEMO_SONG = {
 };
 
 let deferredInstallPrompt = null;
+const collaboration = {
+  peer: null,
+  role: "",
+  roomCode: "",
+  connections: new Map(),
+  applyingRemote: false,
+  syncTimer: 0,
+  connectedCount: 0
+};
 
 const NOTE_TO_SEMITONE = {
   C: 0,
@@ -67,6 +79,13 @@ function bindElements() {
     "copyRemoteUrlButton",
     "openRemoteUrlButton",
     "remoteQrCanvas",
+    "roomCodeInput",
+    "createRoomButton",
+    "joinRoomButton",
+    "leaveRoomButton",
+    "roomShareUrlInput",
+    "copyRoomUrlButton",
+    "collabStatus",
     "installAppButton",
     "imageInput",
     "imagePreview",
@@ -103,6 +122,10 @@ function bindEvents() {
   els.clearWorkspaceButton.addEventListener("click", clearWorkspace);
   els.copyRemoteUrlButton.addEventListener("click", copyRemoteUrl);
   els.openRemoteUrlButton.addEventListener("click", openRemoteUrl);
+  els.createRoomButton.addEventListener("click", createCollaborationRoom);
+  els.joinRoomButton.addEventListener("click", joinCollaborationRoom);
+  els.leaveRoomButton.addEventListener("click", () => leaveCollaborationRoom());
+  els.copyRoomUrlButton.addEventListener("click", copyRoomUrl);
   els.installAppButton.addEventListener("click", installApp);
 
   els.dropZone.addEventListener("click", () => els.imageInput.click());
@@ -139,6 +162,7 @@ function bindEvents() {
   els.parseButton.addEventListener("click", parseAndRender);
   els.sourceText.addEventListener("input", debounce(parseAndRender, 300));
   els.sourceText.addEventListener("input", debounce(saveDraft, 500));
+  els.sourceText.addEventListener("input", debounce(scheduleCollaborationSync, 600));
 
   [
     "titleInput",
@@ -152,6 +176,7 @@ function bindEvents() {
   ].forEach((id) => {
     els[id].addEventListener("input", debounce(parseAndRender, 300));
     els[id].addEventListener("input", debounce(saveDraft, 500));
+    els[id].addEventListener("input", debounce(scheduleCollaborationSync, 600));
   });
 
   els.showBothButton.addEventListener("click", () => setPreviewMode("both"));
@@ -166,6 +191,7 @@ function bindEvents() {
   window.setInterval(checkApiHealth, 60000);
   setupRemoteAccess();
   setupPwa();
+  window.addEventListener("beforeunload", () => leaveCollaborationRoom(true));
 }
 
 async function checkApiHealth() {
@@ -203,7 +229,7 @@ function setupRemoteAccess() {
 }
 
 function getRemoteUrl() {
-  if (/piano-number-score-translator\.netlify\.app$/i.test(location.host)) {
+  if (/^https?:\/\/(?!localhost|127\.0\.0\.1)/i.test(location.href)) {
     return `${location.origin}/`;
   }
   return REMOTE_APP_URL;
@@ -253,6 +279,320 @@ async function copyRemoteUrl() {
 
 function openRemoteUrl() {
   window.open(els.remoteUrlInput.value || getRemoteUrl(), "_blank", "noopener,noreferrer");
+}
+
+async function createCollaborationRoom() {
+  const roomCode = normalizeRoomCode(els.roomCodeInput.value) || createRoomCode();
+  await startCollaborationPeer("host", roomCode);
+}
+
+async function joinCollaborationRoom() {
+  const roomCode = normalizeRoomCode(els.roomCodeInput.value);
+  if (!roomCode) {
+    setCollaborationStatus("缺房號", "error");
+    setStatus("請輸入房號", "warn");
+    return;
+  }
+  await startCollaborationPeer("guest", roomCode);
+}
+
+async function startCollaborationPeer(role, roomCode) {
+  try {
+    await ensureScript(PEERJS_SRC, "Peer");
+    leaveCollaborationRoom(true);
+
+    collaboration.role = role;
+    collaboration.roomCode = roomCode;
+    collaboration.connectedCount = 1;
+    els.roomCodeInput.value = roomCode;
+    updateRoomShareUrl(roomCode);
+    setCollaborationStatus("連線中");
+
+    const peerId = role === "host" ? getRoomPeerId(roomCode) : undefined;
+    collaboration.peer = peerId ? new Peer(peerId) : new Peer();
+
+    collaboration.peer.on("open", () => {
+      if (role === "host") {
+        setCollaborationStatus("主持 1人", "connected");
+        setStatus(`已建立房間 ${roomCode}`);
+      } else {
+        connectToHost();
+        setStatus(`正在加入房間 ${roomCode}`);
+      }
+      updateCollaborationControls();
+    });
+
+    collaboration.peer.on("connection", (connection) => {
+      setupCollaborationConnection(connection);
+    });
+
+    collaboration.peer.on("disconnected", () => {
+      setCollaborationStatus("重連中", "error");
+      collaboration.peer?.reconnect();
+    });
+
+    collaboration.peer.on("error", (error) => {
+      const message = error?.type === "unavailable-id"
+        ? "房號已被使用"
+        : error?.message || "多人連線失敗";
+      setCollaborationStatus("失敗", "error");
+      setStatus(message, "error");
+    });
+  } catch (error) {
+    setCollaborationStatus("失敗", "error");
+    setStatus(error.message || "多人連線失敗", "error");
+  }
+}
+
+function connectToHost() {
+  if (!collaboration.peer || !collaboration.roomCode) return;
+  const connection = collaboration.peer.connect(getRoomPeerId(collaboration.roomCode), { reliable: true });
+  setupCollaborationConnection(connection);
+}
+
+function setupCollaborationConnection(connection) {
+  connection.on("open", () => {
+    collaboration.connections.set(connection.peer, connection);
+    updateConnectedCount();
+
+    if (collaboration.role === "host") {
+      sendCollaborationMessage(connection, {
+        type: "state-update",
+        snapshot: getCollaborationSnapshot()
+      });
+      broadcastPresence();
+    } else {
+      sendCollaborationMessage(connection, { type: "request-state" });
+    }
+  });
+
+  connection.on("data", (message) => {
+    handleCollaborationMessage(connection, message);
+  });
+
+  connection.on("close", () => {
+    collaboration.connections.delete(connection.peer);
+    updateConnectedCount();
+    broadcastPresence();
+  });
+
+  connection.on("error", () => {
+    collaboration.connections.delete(connection.peer);
+    updateConnectedCount();
+  });
+}
+
+function handleCollaborationMessage(connection, message) {
+  if (!message || message.appId !== COLLAB_APP_ID || message.roomCode !== collaboration.roomCode) return;
+
+  if (message.type === "request-state" && collaboration.role === "host") {
+    sendCollaborationMessage(connection, {
+      type: "state-update",
+      snapshot: getCollaborationSnapshot()
+    });
+    return;
+  }
+
+  if (message.type === "presence") {
+    collaboration.connectedCount = Number(message.count || collaboration.connectedCount) || collaboration.connectedCount;
+    updateConnectedCount();
+    return;
+  }
+
+  if (message.type === "state-update" && message.snapshot) {
+    applyCollaborationSnapshot(message.snapshot);
+    if (collaboration.role === "host") {
+      broadcastCollaborationState(connection.peer);
+    }
+  }
+}
+
+function getCollaborationSnapshot() {
+  return {
+    metadata: readMetadata(),
+    sourceText: els.sourceText.value,
+    previewMode: state.previewMode,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function applyCollaborationSnapshot(snapshot) {
+  collaboration.applyingRemote = true;
+  try {
+    const metadata = snapshot.metadata || {};
+    els.titleInput.value = metadata.title || "";
+    els.artistInput.value = metadata.artist || "";
+    els.lyricistInput.value = metadata.lyricist || "";
+    els.composerInput.value = metadata.composer || "";
+    els.originalKeyInput.value = metadata.originalKey || "";
+    els.playKeyInput.value = metadata.playKey || "";
+    els.tempoInput.value = metadata.tempo || "";
+    els.beatInput.value = metadata.beat || "";
+    els.sourceText.value = snapshot.sourceText || "";
+
+    if (["both", "accompaniment", "chord"].includes(snapshot.previewMode)) {
+      setPreviewMode(snapshot.previewMode);
+    }
+
+    if (els.sourceText.value.trim() || els.titleInput.value.trim()) {
+      parseAndRender();
+    } else {
+      state.score = null;
+      renderEmpty();
+      saveDraft();
+    }
+
+    setStatus("已同步多人房間");
+  } finally {
+    collaboration.applyingRemote = false;
+  }
+}
+
+function scheduleCollaborationSync() {
+  if (collaboration.applyingRemote || !collaboration.role || !collaboration.connections.size) return;
+  clearTimeout(collaboration.syncTimer);
+  collaboration.syncTimer = window.setTimeout(() => broadcastCollaborationState(), 350);
+}
+
+function broadcastCollaborationState(excludePeer = "") {
+  if (collaboration.applyingRemote || !collaboration.role || !collaboration.connections.size) return;
+
+  const message = {
+    type: "state-update",
+    snapshot: getCollaborationSnapshot()
+  };
+
+  collaboration.connections.forEach((connection, peerId) => {
+    if (peerId !== excludePeer) sendCollaborationMessage(connection, message);
+  });
+
+  updateConnectedCount();
+}
+
+function broadcastPresence() {
+  if (collaboration.role !== "host") return;
+  const count = collaboration.connections.size + 1;
+  collaboration.connections.forEach((connection) => {
+    sendCollaborationMessage(connection, { type: "presence", count });
+  });
+}
+
+function sendCollaborationMessage(connection, message) {
+  if (!connection?.open) return;
+  connection.send({
+    appId: COLLAB_APP_ID,
+    roomCode: collaboration.roomCode,
+    ...message
+  });
+}
+
+function leaveCollaborationRoom(silent = false) {
+  clearTimeout(collaboration.syncTimer);
+  collaboration.connections.forEach((connection) => {
+    try {
+      connection.close();
+    } catch {
+      // PeerJS can throw if the data channel is already closed.
+    }
+  });
+  collaboration.connections.clear();
+
+  if (collaboration.peer && !collaboration.peer.destroyed) {
+    collaboration.peer.destroy();
+  }
+
+  collaboration.peer = null;
+  collaboration.role = "";
+  collaboration.roomCode = "";
+  collaboration.connectedCount = 0;
+  updateCollaborationControls();
+
+  if (!silent) {
+    setCollaborationStatus("未連線");
+    els.roomShareUrlInput.value = "";
+    setStatus("已離開多人房間");
+  }
+}
+
+async function copyRoomUrl() {
+  const shareUrl = els.roomShareUrlInput.value;
+  if (!shareUrl) {
+    setStatus("請先建立或加入房間", "warn");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+  } catch {
+    els.roomShareUrlInput.select();
+    document.execCommand("copy");
+  }
+  setStatus("已複製邀請連結");
+}
+
+function updateConnectedCount() {
+  if (!collaboration.role) {
+    setCollaborationStatus("未連線");
+    return;
+  }
+
+  const count = collaboration.role === "host"
+    ? collaboration.connections.size + 1
+    : Math.max(2, collaboration.connectedCount || collaboration.connections.size + 1);
+  const roleLabel = collaboration.role === "host" ? "主持" : "加入";
+  setCollaborationStatus(`${roleLabel} ${count}人`, "connected");
+}
+
+function updateCollaborationControls() {
+  const connected = Boolean(collaboration.role);
+  els.leaveRoomButton.hidden = !connected;
+  els.createRoomButton.disabled = connected;
+  els.joinRoomButton.disabled = connected;
+  if (collaboration.roomCode) {
+    els.roomCodeInput.value = collaboration.roomCode;
+    updateRoomShareUrl(collaboration.roomCode);
+  }
+  refreshIcons();
+}
+
+function updateRoomShareUrl(roomCode) {
+  if (!roomCode) {
+    els.roomShareUrlInput.value = "";
+    return;
+  }
+  const url = new URL(getRemoteUrl());
+  url.searchParams.set("room", roomCode);
+  els.roomShareUrlInput.value = url.toString();
+}
+
+function setCollaborationStatus(text, type = "normal") {
+  if (!els.collabStatus) return;
+  els.collabStatus.textContent = text;
+  els.collabStatus.className = `collab-status${type === "connected" ? " connected" : ""}${type === "error" ? " error" : ""}`;
+}
+
+function normalizeRoomCode(value) {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 12);
+}
+
+function createRoomCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(6);
+  if (window.crypto?.getRandomValues) {
+    window.crypto.getRandomValues(bytes);
+  } else {
+    bytes.forEach((_, index) => {
+      bytes[index] = Math.floor(Math.random() * 255);
+    });
+  }
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+}
+
+function getRoomPeerId(roomCode) {
+  return `${COLLAB_PEER_PREFIX}${roomCode.toLowerCase()}`;
 }
 
 function setupPwa() {
@@ -333,6 +673,7 @@ function clearWorkspace() {
   localStorage.removeItem(DRAFT_KEY);
   renderEmpty();
   setStatus("已清空");
+  scheduleCollaborationSync();
 }
 
 async function search91pu(queryOverride) {
@@ -490,6 +831,7 @@ function parseAndRender() {
   state.score = score;
   renderScore(score);
   saveDraft();
+  scheduleCollaborationSync();
 }
 
 function readMetadata() {
@@ -1005,11 +1347,16 @@ function runStartupActions() {
   const params = new URLSearchParams(window.location.search);
   const autoload = params.get("autoload");
   const query = params.get("q");
+  const room = normalizeRoomCode(params.get("room") || "");
   if (query) {
     els.searchInput.value = query;
     search91pu(query);
   }
   if (autoload) importSong(autoload);
+  if (room) {
+    els.roomCodeInput.value = room;
+    window.setTimeout(() => joinCollaborationRoom(), 800);
+  }
 }
 
 function setPreviewMode(mode) {
@@ -1018,6 +1365,7 @@ function setPreviewMode(mode) {
   els.showBothButton.classList.toggle("active", mode === "both");
   els.showAccompanimentButton.classList.toggle("active", mode === "accompaniment");
   els.showChordButton.classList.toggle("active", mode === "chord");
+  scheduleCollaborationSync();
 }
 
 async function handleDownload(action) {
