@@ -105,6 +105,20 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.primary-control {
+  padding-top: 4px;
+}
+
+.main-source {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-note {
+  padding: 8px 0 0;
+  border-top: 0;
+}
+
 .control-block label,
 .label-row label {
   display: block;
@@ -124,6 +138,13 @@ button {
 
 .label-row label {
   margin-bottom: 0;
+}
+
+.inline-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .input-row {
@@ -197,6 +218,68 @@ textarea:focus,
 .icon-button.primary:hover {
   border-color: var(--teal-dark);
   background: var(--teal-dark);
+}
+
+.icon-button.compact {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.tool-drawer {
+  border-top: 1px solid var(--line);
+}
+
+.tool-drawer summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tool-drawer summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-drawer summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #c7d1dc;
+  border-radius: 999px;
+  color: var(--teal-dark);
+  background: #fff;
+  font-weight: 900;
+}
+
+.tool-drawer[open] summary::after {
+  content: "-";
+}
+
+.tool-drawer summary span {
+  min-width: 0;
+}
+
+.tool-drawer summary small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.drawer-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 0 14px;
 }
 
 .result-list {
@@ -698,6 +781,49 @@ textarea:focus,
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  align-items: flex-start;
+}
+
+.download-more {
+  position: relative;
+}
+
+.download-more summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #c7d1dc;
+  border-radius: 8px;
+  background: #fff;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+
+.download-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.download-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  display: grid;
+  min-width: 180px;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--ui-shadow);
+}
+
+.download-menu .icon-button {
+  justify-content: flex-start;
 }
 
 .preview-grid {
@@ -944,6 +1070,35 @@ textarea:focus,
     padding: 12px;
   }
 
+  .brand-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .status-pill {
+    max-width: none;
+    align-self: flex-start;
+  }
+
+  .label-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .inline-actions,
+  .input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-actions {
+    display: grid;
+  }
+
+  .inline-actions .icon-button,
+  .input-row .icon-button {
+    width: 100%;
+  }
+
   .preview-grid,
   .preview-grid.show-accompaniment,
   .preview-grid.show-chord {
@@ -980,6 +1135,26 @@ textarea:focus,
   .collab-controls .icon-button,
   .collab-share-row .icon-button {
     width: 100%;
+  }
+
+  .download-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .download-actions > .icon-button,
+  .download-more summary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .download-menu {
+    position: static;
+    margin-top: 8px;
+    min-width: 0;
+    width: 100%;
+    box-shadow: none;
   }
 
   .segmented {

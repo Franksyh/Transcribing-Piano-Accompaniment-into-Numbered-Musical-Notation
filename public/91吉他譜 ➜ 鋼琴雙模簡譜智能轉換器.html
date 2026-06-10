@@ -44,8 +44,13 @@
         <span class="status-pill" id="networkStatus">就緒</span>
       </header>
 
-      <section class="control-block">
-        <label for="searchInput">91pu 全站搜尋</label>
+      <section class="control-block primary-control">
+        <div class="label-row">
+          <label for="searchInput">輸入歌曲</label>
+          <button class="icon-button compact" id="demoSongButton" type="button">
+            <i data-lucide="sparkles"></i><span>範例</span>
+          </button>
+        </div>
         <div class="input-row">
           <input id="searchInput" type="search" placeholder="歌曲、歌手、作詞或作曲">
           <button class="icon-button primary" id="searchButton" type="button">
@@ -55,151 +60,162 @@
         <div class="result-list" id="searchResults"></div>
       </section>
 
-      <section class="control-block">
-        <label>快速操作</label>
-        <div class="quick-actions">
-          <button class="icon-button" id="demoSongButton" type="button">
-            <i data-lucide="sparkles"></i><span>載入範例歌曲</span>
-          </button>
-          <button class="icon-button" id="clearWorkspaceButton" type="button">
-            <i data-lucide="eraser"></i><span>清空草稿</span>
-          </button>
-        </div>
-        <div class="api-health" id="apiHealth">
-          <i data-lucide="activity"></i>
-          <span>正在連線動態 API</span>
-        </div>
-        <div class="remote-panel" id="remotePanel">
-          <div class="remote-header">
-            <div>
-              <strong>遠端連線</strong>
-              <span>手機、電腦、網頁共用同一個線上版本</span>
-            </div>
-            <span class="remote-badge" id="remoteDeviceBadge">Web</span>
-          </div>
-          <div class="remote-link-row">
-            <input id="remoteUrlInput" type="text" readonly aria-label="遠端連線網址">
-            <button class="icon-button" id="copyRemoteUrlButton" type="button">
-              <i data-lucide="copy"></i><span>複製</span>
-            </button>
-            <button class="icon-button" id="openRemoteUrlButton" type="button">
-              <i data-lucide="external-link"></i><span>開啟</span>
-            </button>
-          </div>
-          <div class="remote-grid">
-            <div class="qr-card">
-              <canvas id="remoteQrCanvas" width="136" height="136" aria-label="遠端連線 QR Code"></canvas>
-              <span>手機掃描</span>
-            </div>
-            <div class="remote-steps">
-              <div><i data-lucide="smartphone"></i><span>手機：掃 QR 或開啟連結</span></div>
-              <div><i data-lucide="monitor"></i><span>電腦：複製網址到瀏覽器</span></div>
-              <div><i data-lucide="globe-2"></i><span>網頁：雲端動態 API</span></div>
-            </div>
-          </div>
-          <div class="collab-panel" id="collabPanel">
-            <div class="collab-header">
-              <div>
-                <strong>多人連線</strong>
-                <span>建立房間後，其他使用者可同步編輯譜面內容。</span>
-              </div>
-              <span class="collab-status" id="collabStatus">未連線</span>
-            </div>
-            <div class="collab-controls">
-              <input id="roomCodeInput" type="text" maxlength="12" placeholder="房號" aria-label="多人連線房號">
-              <button class="icon-button" id="createRoomButton" type="button">
-                <i data-lucide="users-round"></i><span>建立房間</span>
-              </button>
-              <button class="icon-button" id="joinRoomButton" type="button">
-                <i data-lucide="log-in"></i><span>加入</span>
-              </button>
-              <button class="icon-button danger" id="leaveRoomButton" type="button" hidden>
-                <i data-lucide="log-out"></i><span>離開</span>
-              </button>
-            </div>
-            <div class="collab-share-row">
-              <input id="roomShareUrlInput" type="text" readonly aria-label="多人房間邀請連結">
-              <button class="icon-button" id="copyRoomUrlButton" type="button">
-                <i data-lucide="copy"></i><span>複製邀請</span>
-              </button>
-            </div>
-            <p class="collab-hint">歌名、調性、和弦文字與預覽模式會在已連線裝置間自動同步。</p>
-          </div>
-          <button class="icon-button install-button" id="installAppButton" type="button" hidden>
-            <i data-lucide="download"></i><span>安裝到裝置</span>
-          </button>
-        </div>
-        <p class="hint-line">草稿會自動保存在這台裝置，重新整理後可繼續編修。</p>
-      </section>
-
-      <section class="control-block">
+      <section class="control-block source-block main-source">
         <div class="label-row">
-          <label for="imageInput">貼上或拖入圖片</label>
-          <button class="icon-button" id="ocrButton" type="button">
-            <i data-lucide="scan-text"></i><span>辨識</span>
-          </button>
-        </div>
-        <div class="drop-zone" id="dropZone" role="button" tabindex="0">
-          <input id="imageInput" type="file" accept="image/*" hidden>
-          <img id="imagePreview" alt="已載入的譜面圖片" hidden>
-          <div class="drop-copy">
-            <i data-lucide="image-plus"></i>
-            <span>貼上截圖，或點選選取圖片</span>
+          <label for="sourceText">和弦/歌詞</label>
+          <div class="inline-actions">
+            <button class="icon-button primary" id="parseButton" type="button">
+              <i data-lucide="refresh-cw"></i><span>轉譜</span>
+            </button>
+            <button class="icon-button" id="clearWorkspaceButton" type="button">
+              <i data-lucide="eraser"></i><span>清空</span>
+            </button>
           </div>
         </div>
-        <div class="sample-strip">
-          <button class="sample-button" type="button" data-sample="./samples/sample-guitar.jpg">
-            <img src="./samples/sample-guitar.jpg" alt="">
-            <span>91吉他譜</span>
-          </button>
-          <button class="sample-button" type="button" data-sample="./samples/sample-piano-chord.jpg">
-            <img src="./samples/sample-piano-chord.jpg" alt="">
-            <span>和弦簡譜</span>
-          </button>
-          <button class="sample-button" type="button" data-sample="./samples/sample-piano-number.jpg">
-            <img src="./samples/sample-piano-number.jpg" alt="">
-            <span>伴奏簡譜</span>
-          </button>
-        </div>
-        <p class="hint-line" id="ocrStatus"></p>
-      </section>
-
-      <section class="control-block">
-        <label>轉譜檢查</label>
+        <textarea id="sourceText" spellcheck="false" placeholder="[前奏] |Cmaj7 |D |Bm7 |Em |
+1.親愛的你躲在哪裡發呆    有甚麼心事還無法釋懷"></textarea>
         <div class="score-stats" id="scoreStats"></div>
       </section>
 
-      <section class="control-block">
-        <div class="label-row">
-          <label>歌曲資料</label>
-          <button class="icon-button" id="parseButton" type="button">
-            <i data-lucide="refresh-cw"></i><span>轉譜</span>
-          </button>
+      <details class="tool-drawer">
+        <summary>
+          <span>圖片辨識</span>
+          <small>OCR</small>
+        </summary>
+        <div class="drawer-body">
+          <div class="label-row">
+            <label for="imageInput">圖片</label>
+            <button class="icon-button" id="ocrButton" type="button">
+              <i data-lucide="scan-text"></i><span>辨識</span>
+            </button>
+          </div>
+          <div class="drop-zone" id="dropZone" role="button" tabindex="0">
+            <input id="imageInput" type="file" accept="image/*" hidden>
+            <img id="imagePreview" alt="已載入的譜面圖片" hidden>
+            <div class="drop-copy">
+              <i data-lucide="image-plus"></i>
+              <span>貼上截圖或選取圖片</span>
+            </div>
+          </div>
+          <div class="sample-strip">
+            <button class="sample-button" type="button" data-sample="./samples/sample-guitar.jpg">
+              <img src="./samples/sample-guitar.jpg" alt="">
+              <span>91吉他譜</span>
+            </button>
+            <button class="sample-button" type="button" data-sample="./samples/sample-piano-chord.jpg">
+              <img src="./samples/sample-piano-chord.jpg" alt="">
+              <span>和弦簡譜</span>
+            </button>
+            <button class="sample-button" type="button" data-sample="./samples/sample-piano-number.jpg">
+              <img src="./samples/sample-piano-number.jpg" alt="">
+              <span>伴奏簡譜</span>
+            </button>
+          </div>
+          <p class="hint-line" id="ocrStatus"></p>
         </div>
-        <div class="compact-grid">
-          <label for="titleInput">歌名</label>
-          <input id="titleInput" type="text">
-          <label for="artistInput">演唱</label>
-          <input id="artistInput" type="text">
-          <label for="lyricistInput">作詞</label>
-          <input id="lyricistInput" type="text">
-          <label for="composerInput">作曲</label>
-          <input id="composerInput" type="text">
-          <label for="originalKeyInput">原調</label>
-          <input id="originalKeyInput" type="text" placeholder="Bb">
-          <label for="playKeyInput">選調</label>
-          <input id="playKeyInput" type="text" placeholder="G">
-          <label for="tempoInput">速度</label>
-          <input id="tempoInput" type="text" placeholder="86">
-          <label for="beatInput">拍號</label>
-          <input id="beatInput" type="text" placeholder="4/4">
-        </div>
-      </section>
+      </details>
 
-      <section class="control-block source-block">
-        <label for="sourceText">91pu 和弦/歌詞內容</label>
-        <textarea id="sourceText" spellcheck="false" placeholder="[前奏] |Cmaj7 |D |Bm7 |Em |
-1.親愛的你躲在哪裡發呆    有甚麼心事還無法釋懷"></textarea>
+      <details class="tool-drawer">
+        <summary>
+          <span>歌曲資料</span>
+          <small>調性/速度</small>
+        </summary>
+        <div class="drawer-body">
+          <div class="compact-grid">
+            <label for="titleInput">歌名</label>
+            <input id="titleInput" type="text">
+            <label for="artistInput">演唱</label>
+            <input id="artistInput" type="text">
+            <label for="lyricistInput">作詞</label>
+            <input id="lyricistInput" type="text">
+            <label for="composerInput">作曲</label>
+            <input id="composerInput" type="text">
+            <label for="originalKeyInput">原調</label>
+            <input id="originalKeyInput" type="text" placeholder="Bb">
+            <label for="playKeyInput">選調</label>
+            <input id="playKeyInput" type="text" placeholder="G">
+            <label for="tempoInput">速度</label>
+            <input id="tempoInput" type="text" placeholder="86">
+            <label for="beatInput">拍號</label>
+            <input id="beatInput" type="text" placeholder="4/4">
+          </div>
+        </div>
+      </details>
+
+      <details class="tool-drawer">
+        <summary>
+          <span>遠端與多人</span>
+          <small>手機/電腦/網頁</small>
+        </summary>
+        <div class="drawer-body">
+          <div class="api-health" id="apiHealth">
+            <i data-lucide="activity"></i>
+            <span>正在連線動態 API</span>
+          </div>
+          <div class="remote-panel" id="remotePanel">
+            <div class="remote-header">
+              <div>
+                <strong>遠端連線</strong>
+                <span>手機、電腦、網頁共用同一個線上版本</span>
+              </div>
+              <span class="remote-badge" id="remoteDeviceBadge">Web</span>
+            </div>
+            <div class="remote-link-row">
+              <input id="remoteUrlInput" type="text" readonly aria-label="遠端連線網址">
+              <button class="icon-button" id="copyRemoteUrlButton" type="button">
+                <i data-lucide="copy"></i><span>複製</span>
+              </button>
+              <button class="icon-button" id="openRemoteUrlButton" type="button">
+                <i data-lucide="external-link"></i><span>開啟</span>
+              </button>
+            </div>
+            <div class="remote-grid">
+              <div class="qr-card">
+                <canvas id="remoteQrCanvas" width="136" height="136" aria-label="遠端連線 QR Code"></canvas>
+                <span>手機掃描</span>
+              </div>
+              <div class="remote-steps">
+                <div><i data-lucide="smartphone"></i><span>手機</span></div>
+                <div><i data-lucide="monitor"></i><span>電腦</span></div>
+                <div><i data-lucide="globe-2"></i><span>網頁</span></div>
+              </div>
+            </div>
+            <div class="collab-panel" id="collabPanel">
+              <div class="collab-header">
+                <div>
+                  <strong>多人連線</strong>
+                  <span>同步譜面內容</span>
+                </div>
+                <span class="collab-status" id="collabStatus">未連線</span>
+              </div>
+              <div class="collab-controls">
+                <input id="roomCodeInput" type="text" maxlength="12" placeholder="房號" aria-label="多人連線房號">
+                <button class="icon-button" id="createRoomButton" type="button">
+                  <i data-lucide="users-round"></i><span>建立房間</span>
+                </button>
+                <button class="icon-button" id="joinRoomButton" type="button">
+                  <i data-lucide="log-in"></i><span>加入</span>
+                </button>
+                <button class="icon-button danger" id="leaveRoomButton" type="button" hidden>
+                  <i data-lucide="log-out"></i><span>離開</span>
+                </button>
+              </div>
+              <div class="collab-share-row">
+                <input id="roomShareUrlInput" type="text" readonly aria-label="多人房間邀請連結">
+                <button class="icon-button" id="copyRoomUrlButton" type="button">
+                  <i data-lucide="copy"></i><span>複製邀請</span>
+                </button>
+              </div>
+            </div>
+            <button class="icon-button install-button" id="installAppButton" type="button" hidden>
+              <i data-lucide="download"></i><span>安裝到裝置</span>
+            </button>
+          </div>
+        </div>
+      </details>
+
+      <section class="control-block compact-note">
+        <p class="hint-line">草稿會自動保存在這台裝置。</p>
       </section>
     </aside>
 
@@ -211,21 +227,26 @@
           <button id="showChordButton" type="button">和弦簡譜</button>
         </div>
         <div class="download-actions">
-          <button class="icon-button" type="button" data-download="accompaniment-jpg">
-            <i data-lucide="image-down"></i><span>伴奏 JPG</span>
-          </button>
-          <button class="icon-button" type="button" data-download="accompaniment-pdf">
-            <i data-lucide="file-down"></i><span>伴奏 PDF</span>
-          </button>
-          <button class="icon-button" type="button" data-download="chord-jpg">
-            <i data-lucide="image-down"></i><span>和弦 JPG</span>
-          </button>
-          <button class="icon-button" type="button" data-download="chord-pdf">
-            <i data-lucide="file-down"></i><span>和弦 PDF</span>
-          </button>
           <button class="icon-button primary" type="button" data-download="both-pdf">
             <i data-lucide="files"></i><span>雙頁 PDF</span>
           </button>
+          <details class="download-more">
+            <summary>更多格式</summary>
+            <div class="download-menu">
+              <button class="icon-button" type="button" data-download="accompaniment-jpg">
+                <i data-lucide="image-down"></i><span>伴奏 JPG</span>
+              </button>
+              <button class="icon-button" type="button" data-download="accompaniment-pdf">
+                <i data-lucide="file-down"></i><span>伴奏 PDF</span>
+              </button>
+              <button class="icon-button" type="button" data-download="chord-jpg">
+                <i data-lucide="image-down"></i><span>和弦 JPG</span>
+              </button>
+              <button class="icon-button" type="button" data-download="chord-pdf">
+                <i data-lucide="file-down"></i><span>和弦 PDF</span>
+              </button>
+            </div>
+          </details>
         </div>
       </div>
 
