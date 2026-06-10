@@ -6,7 +6,7 @@ const state = {
 };
 
 const DRAFT_KEY = "piano-number-score-translator:draft:v2";
-const REMOTE_APP_URL = "https://piano-number-score-translator.netlify.app/";
+const REMOTE_APP_URL = "https://transcribing-piano-accompaniment-no.vercel.app/";
 const PEERJS_SRC = "https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js";
 const COLLAB_APP_ID = "piano-number-score-translator";
 const COLLAB_PEER_PREFIX = "piano-score-room-";
