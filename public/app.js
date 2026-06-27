@@ -15,6 +15,34 @@ const DEMO_SONG = {
   query: "永不失聯的愛",
   url: "https://www.91pu.com.tw/song/2017/0701/7086.html"
 };
+const DEMO_FALLBACK = {
+  title: "永不失聯的愛",
+  artist: "周興哲",
+  lyricist: "饒雪漫",
+  composer: "ERIC 周興哲",
+  originalKey: "Bb",
+  playKey: "G",
+  tempo: "86",
+  beat: "4/4",
+  sourceText: `[前奏] |Cmaj7 |D |Bm7 |Em |Am7 |D |G |D |
+
+[主歌]
+|Cmaj7 |D |Bm7 |Em |
+1.親愛的你躲在哪裡發呆    有甚麼心事還無法釋懷
+2.走過陪你看流星的天台    熬過失去你漫長的等待
+|Am7 |D |G |G |
+1.我們總把人生想得太壞    像旁人不允許我們的怪
+2.好擔心沒人懂你的無奈    離開我誰還把你當小孩
+
+[副歌]
+|Cmaj7 |D/C |Bm7 |Em |
+你給我 這一輩子都不想失聯的愛    相信愛的征途就是星辰大海
+|Am7 |D |G |G |
+美好劇情 不會更改    是命運最好的安排
+
+[尾奏]
+|Cmaj7 |D |Bm7 |Em |Am7 |D |G ||`
+};
 
 let deferredInstallPrompt = null;
 const collaboration = {
@@ -733,25 +761,35 @@ async function importSong(id, sourceUrl = "") {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "匯入失敗");
 
-    els.titleInput.value = data.title || "";
-    els.artistInput.value = data.artist || "";
-    els.lyricistInput.value = data.lyricist || "";
-    els.composerInput.value = data.composer || "";
-    els.originalKeyInput.value = data.originalKey || "";
-    els.playKeyInput.value = data.playKey || data.originalKey || "";
-    els.tempoInput.value = data.tempo || "";
-    els.beatInput.value = data.beat || "4/4";
-    els.sourceText.value = data.sourceText || "";
-
+    applySongData(data);
     const brushText = formatBrush(data.brush);
     els.ocrStatus.textContent = brushText ? `已匯入。${brushText}` : "已匯入 91pu 歌曲資料。";
-    parseAndRender();
-    saveDraft();
-    setStatus("已匯入");
   } catch (error) {
+    if (id === DEMO_SONG.id) {
+      applySongData(DEMO_FALLBACK);
+      els.ocrStatus.textContent = "91pu 暫時無法連線，已載入內建範例。";
+      setStatus("已載入範例", "warn");
+      return;
+    }
     setStatus("匯入失敗", "error");
     els.ocrStatus.textContent = error.message;
   }
+}
+
+function applySongData(data) {
+  els.titleInput.value = data.title || "";
+  els.artistInput.value = data.artist || "";
+  els.lyricistInput.value = data.lyricist || "";
+  els.composerInput.value = data.composer || "";
+  els.originalKeyInput.value = data.originalKey || "";
+  els.playKeyInput.value = data.playKey || data.originalKey || "";
+  els.tempoInput.value = data.tempo || "";
+  els.beatInput.value = data.beat || "4/4";
+  els.sourceText.value = data.sourceText || "";
+
+  parseAndRender();
+  saveDraft();
+  setStatus("已匯入");
 }
 
 function loadImageFile(file) {
@@ -1200,27 +1238,27 @@ function renderScore(score) {
 
 function renderAccompanimentSheet(score) {
   return `
-    ${renderHeader(score, "鋼琴伴奏簡譜（手稿音型修正版）")}
+    ${renderHeader(score, "單手鋼琴伴奏譜（右手音型版）")}
     ${score.sections.map((section) => `
       <section class="score-section">
         <h3 class="section-title">[${escapeHtml(section.name)}]</h3>
         ${section.rows.map((row) => renderAccompanimentRow(row)).join("")}
       </section>
     `).join("")}
-    <div class="sheet-footer">依 91pu 和弦自動轉換為鋼琴伴奏音型，請依實際旋律微調。</div>
+    <div class="sheet-footer">單手版依和弦產生右手伴奏音型，適合初學、快速伴奏與主旋律搭配。</div>
   `;
 }
 
 function renderChordSheet(score) {
   return `
-    ${renderHeader(score, "鋼琴和弦簡譜（專業精緻一頁版）")}
+    ${renderHeader(score, "雙手鋼琴伴奏譜（右手和弦 / 左手低音）")}
     ${score.sections.map((section) => `
       <section class="score-section">
         <h3 class="section-title">[${escapeHtml(section.name)}]</h3>
         ${section.rows.map((row) => renderChordRow(row)).join("")}
       </section>
     `).join("")}
-    <div class="sheet-footer">右手為和弦音，左手為低音與五度；長譜下載 PDF 時會自動分頁。</div>
+    <div class="sheet-footer">雙手版右手彈和弦音，左手彈低音與五度；長譜下載 PDF 時會自動分頁。</div>
   `;
 }
 
@@ -1380,10 +1418,10 @@ async function handleDownload(action) {
   try {
     setStatus("產生檔案");
     if (action === "both-pdf") {
-      await downloadBothPdf(`${title}-鋼琴雙模簡譜.pdf`);
+      await downloadBothPdf(`${title}-雙手與單手鋼琴伴奏譜.pdf`);
     } else {
       const element = target === "chord" ? els["sheet-chord"] : els["sheet-accompaniment"];
-      const suffix = target === "chord" ? "鋼琴和弦簡譜" : "鋼琴伴奏簡譜";
+      const suffix = target === "chord" ? "雙手鋼琴伴奏譜" : "單手鋼琴伴奏譜";
       if (format === "jpg") await downloadJpg(element, `${title}-${suffix}.jpg`);
       if (format === "pdf") await downloadPdf(element, `${title}-${suffix}.pdf`);
     }

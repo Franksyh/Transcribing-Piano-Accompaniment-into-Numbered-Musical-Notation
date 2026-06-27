@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>91吉他譜 ➜ 鋼琴雙模簡譜智能轉換器</title>
+  <title>91吉他譜 ➜ 雙手/單手鋼琴伴奏轉譜器</title>
   <meta name="theme-color" content="#0f766e">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/app-icon.svg" type="image/svg+xml">
@@ -38,8 +38,8 @@
     <aside class="workspace-panel">
       <header class="brand-row">
         <div>
-          <h1>91吉他譜 ➜ 鋼琴雙模簡譜</h1>
-          <p>搜尋 91pu、辨識圖片、轉成 A4 鋼琴簡譜。</p>
+          <h1>91吉他譜 ➜ 鋼琴伴奏轉譜器</h1>
+          <p>輸入歌名或吉他譜，產生雙手與單手鋼琴伴奏譜。</p>
         </div>
         <span class="status-pill" id="networkStatus">就緒</span>
       </header>
@@ -104,11 +104,11 @@
             </button>
             <button class="sample-button" type="button" data-sample="./samples/sample-piano-chord.jpg">
               <img src="./samples/sample-piano-chord.jpg" alt="">
-              <span>和弦簡譜</span>
+              <span>雙手範例</span>
             </button>
             <button class="sample-button" type="button" data-sample="./samples/sample-piano-number.jpg">
               <img src="./samples/sample-piano-number.jpg" alt="">
-              <span>伴奏簡譜</span>
+              <span>單手範例</span>
             </button>
           </div>
           <p class="hint-line" id="ocrStatus"></p>
@@ -223,27 +223,27 @@
       <div class="toolbar">
         <div class="segmented" aria-label="預覽模式">
           <button id="showBothButton" class="active" type="button">雙頁</button>
-          <button id="showAccompanimentButton" type="button">伴奏簡譜</button>
-          <button id="showChordButton" type="button">和弦簡譜</button>
+          <button id="showAccompanimentButton" type="button">單手伴奏</button>
+          <button id="showChordButton" type="button">雙手伴奏</button>
         </div>
         <div class="download-actions">
           <button class="icon-button primary" type="button" data-download="both-pdf">
-            <i data-lucide="files"></i><span>雙頁 PDF</span>
+            <i data-lucide="files"></i><span>雙譜 PDF</span>
           </button>
           <details class="download-more">
             <summary>更多格式</summary>
             <div class="download-menu">
               <button class="icon-button" type="button" data-download="accompaniment-jpg">
-                <i data-lucide="image-down"></i><span>伴奏 JPG</span>
+                <i data-lucide="image-down"></i><span>單手 JPG</span>
               </button>
               <button class="icon-button" type="button" data-download="accompaniment-pdf">
-                <i data-lucide="file-down"></i><span>伴奏 PDF</span>
+                <i data-lucide="file-down"></i><span>單手 PDF</span>
               </button>
               <button class="icon-button" type="button" data-download="chord-jpg">
-                <i data-lucide="image-down"></i><span>和弦 JPG</span>
+                <i data-lucide="image-down"></i><span>雙手 JPG</span>
               </button>
               <button class="icon-button" type="button" data-download="chord-pdf">
-                <i data-lucide="file-down"></i><span>和弦 PDF</span>
+                <i data-lucide="file-down"></i><span>雙手 PDF</span>
               </button>
             </div>
           </details>
