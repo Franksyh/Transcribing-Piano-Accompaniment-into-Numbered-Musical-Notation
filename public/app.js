@@ -978,7 +978,7 @@ function inferMetadata(source) {
 
 function buildScore(metadata, source) {
   const clean = normalizeSource(source);
-  const sections = parseSections(clean);
+  const sections = compactSections(parseSections(clean));
 
   return {
     metadata: {
@@ -993,6 +993,93 @@ function buildScore(metadata, source) {
     },
     sections: sections.length ? sections : [makeFallbackSection()]
   };
+}
+
+function compactSections(sections) {
+  const output = [];
+
+  sections.forEach((section) => {
+    const compacted = {
+      name: section.name,
+      rows: compactRows(section.rows)
+    };
+    const signature = compacted.rows.map(rowChordSignature).join("||");
+    const hasLyrics = compacted.rows.some(rowHasLyrics);
+    const matching = hasLyrics && signature
+      ? output.find((candidate) => candidate.signature === signature && candidate.hasLyrics)
+      : null;
+
+    if (matching) {
+      matching.section.name = mergeSectionNames(matching.section.name, compacted.name);
+      matching.section.rows = matching.section.rows.map((row, index) => mergeRows(row, compacted.rows[index]));
+      return;
+    }
+
+    output.push({ section: compacted, signature, hasLyrics });
+  });
+
+  return output.map((item) => item.section);
+}
+
+function compactRows(rows) {
+  const output = [];
+  const lyricRowBySignature = new Map();
+
+  rows.forEach((row) => {
+    const clone = cloneRow(row);
+    const signature = rowChordSignature(clone);
+    const existingIndex = signature && rowHasLyrics(clone) ? lyricRowBySignature.get(signature) : undefined;
+
+    if (existingIndex !== undefined) {
+      output[existingIndex] = mergeRows(output[existingIndex], clone);
+      return;
+    }
+
+    output.push(clone);
+    if (signature && rowHasLyrics(clone)) lyricRowBySignature.set(signature, output.length - 1);
+  });
+
+  return output;
+}
+
+function rowChordSignature(row) {
+  return padMeasures(row.measures)
+    .map((measure) => String(measure.chord || "").replace(/\s+/g, "").toUpperCase())
+    .join("|");
+}
+
+function rowHasLyrics(row) {
+  return row.measures.some((measure) => measure.lyrics?.some((line) => String(line).trim()));
+}
+
+function cloneRow(row) {
+  return {
+    measures: row.measures.map((measure) => ({
+      ...measure,
+      lyrics: [...(measure.lyrics || [])]
+    }))
+  };
+}
+
+function mergeRows(first, second) {
+  const length = Math.max(first.measures.length, second.measures.length);
+  const measures = [];
+
+  for (let index = 0; index < length; index += 1) {
+    const base = first.measures[index] || second.measures[index] || makeMeasure("", []);
+    const incoming = second.measures[index];
+    const lyrics = [...(base.lyrics || []), ...(incoming?.lyrics || [])]
+      .map((line) => String(line).trim())
+      .filter((line, lineIndex, lines) => line && lines.indexOf(line) === lineIndex);
+    measures.push({ ...base, lyrics });
+  }
+
+  return { measures };
+}
+
+function mergeSectionNames(first, second) {
+  const names = `${first} / ${second}`.split("/").map((name) => name.trim()).filter(Boolean);
+  return [...new Set(names)].join(" / ");
 }
 
 function parseSections(source) {
@@ -1116,7 +1203,10 @@ function makeMeasure(chord, lyrics) {
 }
 
 function distributeLyrics(line, measures) {
-  const text = line.replace(/^歌詞\s*[:：]?/, "").trim();
+  const text = line
+    .replace(/^歌詞\s*[:：]?/, "")
+    .replace(/^[▲△●○]?\s*\d+\s*[.．、)]\s*/, "")
+    .trim();
   const parts = splitLyricParts(text, measures.length);
   parts.forEach((part, index) => {
     if (part && measures[index]) measures[index].lyrics.push(part);
@@ -1155,7 +1245,9 @@ function isMetaLine(line) {
 }
 
 function shouldSkipTextLine(line) {
-  return /^(C\/Am|G\/Em|調前奏六線譜|參考刷法|參考指法|91pu\.com\.tw)/i.test(line.trim());
+  const text = line.trim();
+  return /^(C\/Am|G\/Em|調前奏六線譜|參考刷法|參考指法|91pu\.com\.tw)/i.test(text)
+    || /^[（(]?\d+[）)]?$/.test(text);
 }
 
 function chordLabelToNumbers(chordLabel) {
@@ -1231,9 +1323,22 @@ function semitoneToFixedNumber(semitone, lower = false) {
 function renderScore(score) {
   els["sheet-accompaniment"].innerHTML = renderAccompanimentSheet(score);
   els["sheet-chord"].innerHTML = renderChordSheet(score);
+  applySheetDensity(els["sheet-accompaniment"], score, "accompaniment");
+  applySheetDensity(els["sheet-chord"], score, "chord");
   document.body.dataset.rendered = "true";
   updateScoreStats(score);
   refreshIcons();
+}
+
+function applySheetDensity(element, score, mode) {
+  const rows = score.sections.flatMap((section) => section.rows);
+  const lyricLines = rows.reduce(
+    (sum, row) => sum + row.measures.reduce((rowSum, measure) => rowSum + (measure.lyrics?.length || 0), 0),
+    0
+  );
+  const weight = rows.length + (lyricLines * 0.12) + (score.sections.length * 0.4) + (mode === "chord" ? 1 : 0);
+  element.classList.toggle("compact-layout", weight > 8);
+  element.classList.toggle("dense-layout", weight > 12);
 }
 
 function renderAccompanimentSheet(score) {
@@ -1258,7 +1363,7 @@ function renderChordSheet(score) {
         ${section.rows.map((row) => renderChordRow(row)).join("")}
       </section>
     `).join("")}
-    <div class="sheet-footer">雙手版右手彈和弦音，左手彈低音與五度；長譜下載 PDF 時會自動分頁。</div>
+    <div class="sheet-footer">雙手版右手彈和弦音，左手彈低音與五度；重複和弦共用譜面，不同歌詞疊列顯示。</div>
   `;
 }
 
@@ -1316,7 +1421,10 @@ function renderChordRow(row) {
 
 function renderLyrics(lyrics) {
   if (!lyrics?.length) return "";
-  return `<div class="lyric-lines">${lyrics.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}</div>`;
+  const showIndex = lyrics.length > 1;
+  return `<div class="lyric-lines ${showIndex ? "stacked-lyrics" : ""}">${lyrics.map((line, index) => `
+    <div>${showIndex ? `<span class="lyric-index">${index + 1}.</span>` : ""}<span>${escapeHtml(line)}</span></div>
+  `).join("")}</div>`;
 }
 
 function renderEmpty() {
@@ -1433,7 +1541,7 @@ async function handleDownload(action) {
 }
 
 async function downloadJpg(element, filename) {
-  const canvas = await renderElementCanvas(element);
+  const canvas = await renderA4Canvas(element);
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.94));
   triggerDownload(URL.createObjectURL(blob), filename);
 }
@@ -1441,19 +1549,36 @@ async function downloadJpg(element, filename) {
 async function downloadPdf(element, filename) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
-  const canvas = await renderElementCanvas(element);
-  addCanvasPagesToPdf(pdf, canvas);
+  const canvas = await renderA4Canvas(element);
+  addCanvasToPdfPage(pdf, canvas);
   pdf.save(filename);
 }
 
 async function downloadBothPdf(filename) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
-  const first = await renderElementCanvas(els["sheet-accompaniment"]);
-  addCanvasPagesToPdf(pdf, first);
-  const second = await renderElementCanvas(els["sheet-chord"]);
-  addCanvasPagesToPdf(pdf, second, true);
+  const first = await renderA4Canvas(els["sheet-accompaniment"]);
+  addCanvasToPdfPage(pdf, first);
+  const second = await renderA4Canvas(els["sheet-chord"]);
+  addCanvasToPdfPage(pdf, second, true);
   pdf.save(filename);
+}
+
+async function renderA4Canvas(element) {
+  const source = await renderElementCanvas(element);
+  const canvas = document.createElement("canvas");
+  canvas.width = 1588;
+  canvas.height = 2246;
+  const ctx = canvas.getContext("2d");
+  const scale = Math.min(canvas.width / source.width, canvas.height / source.height);
+  const width = source.width * scale;
+  const height = source.height * scale;
+  const x = (canvas.width - width) / 2;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(source, 0, 0, source.width, source.height, x, 0, width, height);
+  return canvas;
 }
 
 async function renderElementCanvas(element) {
@@ -1466,30 +1591,11 @@ async function renderElementCanvas(element) {
   });
 }
 
-function addCanvasPagesToPdf(pdf, canvas, forceNewPage = false) {
+function addCanvasToPdfPage(pdf, canvas, forceNewPage = false) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const sliceHeight = Math.floor(canvas.width * (pageHeight / pageWidth));
-  const scale = pageWidth / canvas.width;
-  let y = 0;
-  let pageIndex = 0;
-
-  while (y < canvas.height) {
-    if (forceNewPage || pageIndex > 0) pdf.addPage();
-    forceNewPage = false;
-
-    const currentSliceHeight = Math.min(sliceHeight, canvas.height - y);
-    const pageCanvas = document.createElement("canvas");
-    pageCanvas.width = canvas.width;
-    pageCanvas.height = currentSliceHeight;
-    const ctx = pageCanvas.getContext("2d");
-    ctx.drawImage(canvas, 0, y, canvas.width, currentSliceHeight, 0, 0, canvas.width, currentSliceHeight);
-
-    const imageHeight = currentSliceHeight * scale;
-    pdf.addImage(pageCanvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, imageHeight);
-    y += currentSliceHeight;
-    pageIndex += 1;
-  }
+  if (forceNewPage) pdf.addPage();
+  pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidth, pageHeight);
 }
 
 function triggerDownload(url, filename) {

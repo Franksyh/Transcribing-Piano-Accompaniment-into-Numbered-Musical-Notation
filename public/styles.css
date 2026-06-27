@@ -829,7 +829,7 @@ textarea:focus,
 .preview-grid {
   display: grid;
   grid-template-columns: repeat(2, 794px);
-  justify-content: center;
+  justify-content: safe center;
   gap: 22px;
 }
 
@@ -963,6 +963,126 @@ textarea:focus,
   font-size: 13px;
   line-height: 1.55;
   overflow-wrap: anywhere;
+}
+
+.lyric-lines > div {
+  display: flex;
+  gap: 4px;
+}
+
+.lyric-lines > div > span:last-child {
+  min-width: 0;
+}
+
+.lyric-index {
+  flex: 0 0 auto;
+  color: #344054;
+  font-weight: 900;
+}
+
+.score-paper.compact-layout {
+  padding: 44px 46px 36px;
+}
+
+.score-paper.compact-layout .score-header {
+  margin-bottom: 18px;
+  padding-bottom: 9px;
+}
+
+.score-paper.compact-layout .score-header h2 {
+  font-size: 29px;
+}
+
+.score-paper.compact-layout .score-section {
+  margin-top: 15px;
+}
+
+.score-paper.compact-layout .section-title {
+  margin-bottom: 7px;
+  font-size: 15px;
+}
+
+.score-paper.compact-layout .measure-grid {
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.score-paper.compact-layout .measure {
+  min-height: 70px;
+  padding-bottom: 3px;
+}
+
+.score-paper.compact-layout.chord-mode .measure {
+  min-height: 91px;
+}
+
+.score-paper.compact-layout .chord-name {
+  font-size: 15px;
+}
+
+.score-paper.compact-layout .number-line {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.score-paper.compact-layout .hand-line {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.score-paper.compact-layout .lyric-lines {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.score-paper.dense-layout {
+  padding: 34px 38px 28px;
+}
+
+.score-paper.dense-layout .score-header {
+  margin-bottom: 12px;
+}
+
+.score-paper.dense-layout .score-header h2 {
+  font-size: 26px;
+}
+
+.score-paper.dense-layout .score-header .subtitle,
+.score-paper.dense-layout .meta-line {
+  font-size: 11px;
+}
+
+.score-paper.dense-layout .score-section {
+  margin-top: 10px;
+}
+
+.score-paper.dense-layout .measure {
+  min-height: 58px;
+}
+
+.score-paper.dense-layout.chord-mode .measure {
+  min-height: 76px;
+}
+
+.score-paper.dense-layout .section-title {
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+.score-paper.dense-layout .chord-name,
+.score-paper.dense-layout .number-line {
+  font-size: 14px;
+}
+
+.score-paper.dense-layout .hand-line,
+.score-paper.dense-layout .lyric-lines {
+  font-size: 10px;
+}
+
+.score-paper.dense-layout .sheet-footer {
+  margin-top: 15px;
 }
 
 .score-paper.chord-mode .measure {
