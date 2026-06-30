@@ -6,3 +6,6 @@ npm-debug.log*
 server.log
 server.err.log
 verification-*.png
+
+.vercel
+.env*
