@@ -652,7 +652,7 @@ textarea:focus,
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1083,6 +1083,79 @@ textarea:focus,
 
 .score-paper.dense-layout .sheet-footer {
   margin-top: 15px;
+}
+
+.score-paper.single-page-layout {
+  padding: 24px 28px 20px;
+}
+
+.score-paper.single-page-layout .score-header {
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+}
+
+.score-paper.single-page-layout .score-header h2 {
+  font-size: 23px;
+}
+
+.score-paper.single-page-layout .score-header .subtitle,
+.score-paper.single-page-layout .meta-line {
+  font-size: 9px;
+}
+
+.score-paper.single-page-layout .score-section {
+  margin-top: 7px;
+}
+
+.score-paper.single-page-layout .section-title {
+  margin-bottom: 4px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  font-size: 12px;
+}
+
+.score-paper.single-page-layout .measure-grid {
+  gap: 5px 8px;
+  margin-bottom: 5px;
+}
+
+.score-paper.single-page-layout .measure {
+  min-height: 48px;
+  padding: 0 5px 2px 8px;
+}
+
+.score-paper.single-page-layout.chord-mode .measure {
+  min-height: 64px;
+}
+
+.score-paper.single-page-layout .chord-name,
+.score-paper.single-page-layout .number-line {
+  min-height: 0;
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.score-paper.single-page-layout .number-line {
+  margin-top: 2px;
+  word-spacing: 4px;
+}
+
+.score-paper.single-page-layout .hand-line {
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.score-paper.single-page-layout .lyric-lines {
+  margin-top: 3px;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.score-paper.single-page-layout .sheet-footer {
+  margin-top: 8px;
+  padding-top: 5px;
+  font-size: 8px;
 }
 
 .score-paper.chord-mode .measure {

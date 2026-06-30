@@ -978,7 +978,10 @@ function inferMetadata(source) {
 
 function buildScore(metadata, source) {
   const clean = normalizeSource(source);
-  const sections = compactSections(parseSections(clean));
+  const parsedSections = parseSections(clean);
+  const sourceRows = countSectionRows(parsedSections);
+  const sections = compactSections(parsedSections);
+  const outputRows = countSectionRows(sections);
 
   return {
     metadata: {
@@ -991,7 +994,12 @@ function buildScore(metadata, source) {
       tempo: metadata.tempo || "",
       beat: metadata.beat || "4/4"
     },
-    sections: sections.length ? sections : [makeFallbackSection()]
+    sections: sections.length ? sections : [makeFallbackSection()],
+    compaction: {
+      sourceRows,
+      outputRows,
+      mergedRows: Math.max(0, sourceRows - outputRows)
+    }
   };
 }
 
@@ -1005,8 +1013,13 @@ function compactSections(sections) {
     };
     const signature = compacted.rows.map(rowChordSignature).join("||");
     const hasLyrics = compacted.rows.some(rowHasLyrics);
+    const family = sectionFamily(compacted.name);
     const matching = hasLyrics && signature
-      ? output.find((candidate) => candidate.signature === signature && candidate.hasLyrics)
+      ? output.find((candidate) => (
+        candidate.signature === signature
+        && candidate.family === family
+        && candidate.hasLyrics
+      ))
       : null;
 
     if (matching) {
@@ -1015,10 +1028,80 @@ function compactSections(sections) {
       return;
     }
 
-    output.push({ section: compacted, signature, hasLyrics });
+    const familyMatch = hasLyrics
+      ? output.find((candidate) => candidate.family === family && candidate.hasLyrics)
+      : null;
+
+    if (familyMatch) {
+      const merged = mergeSectionRows(familyMatch.section.rows, compacted.rows);
+      if (merged.mergedRows) {
+        familyMatch.section.name = mergeSectionNames(familyMatch.section.name, compacted.name);
+        familyMatch.section.rows = merged.rows;
+        familyMatch.signature = merged.rows.map(rowChordSignature).join("||");
+        return;
+      }
+    }
+
+    output.push({ section: compacted, signature, hasLyrics, family });
   });
 
   return output.map((item) => item.section);
+}
+
+function countSectionRows(sections) {
+  return sections.reduce((sum, section) => sum + section.rows.length, 0);
+}
+
+function sectionFamily(name) {
+  const source = String(name || "").trim().toLowerCase();
+  if (/預副歌|pre[\s-]?chorus/.test(source)) return "pre-chorus";
+  if (/副歌|chorus|refrain|hook/.test(source)) return "chorus";
+  if (/主歌|verse/.test(source) || /^[a-z]\s*段$/i.test(source)) return "verse";
+  if (/橋段|橋|bridge/.test(source)) return "bridge";
+  if (/前奏|intro/.test(source)) return "intro";
+  if (/間奏|interlude/.test(source)) return "interlude";
+  if (/尾奏|outro|ending/.test(source)) return "outro";
+
+  const normalized = source
+    .replace(/第\s*[一二三四五六七八九十0-9]+/g, "")
+    .replace(/[（(]?\s*[一二三四五六七八九十0-9]+\s*[）)]?/g, "")
+    .replace(/[a-z]\s*段$/i, "段")
+    .replace(/[\s_-]+/g, "");
+  return normalized ? `named:${normalized}` : "verse";
+}
+
+function mergeSectionRows(firstRows, secondRows) {
+  const rows = firstRows.map(cloneRow);
+  const rowIndexBySignature = new Map();
+  let mergedRows = 0;
+
+  rows.forEach((row, index) => {
+    const signature = rowChordSignature(row);
+    if (signature && rowHasLyrics(row) && !rowIndexBySignature.has(signature)) {
+      rowIndexBySignature.set(signature, index);
+    }
+  });
+
+  secondRows.forEach((row) => {
+    const clone = cloneRow(row);
+    const signature = rowChordSignature(clone);
+    const existingIndex = signature && rowHasLyrics(clone)
+      ? rowIndexBySignature.get(signature)
+      : undefined;
+
+    if (existingIndex !== undefined) {
+      rows[existingIndex] = mergeRows(rows[existingIndex], clone);
+      mergedRows += 1;
+      return;
+    }
+
+    rows.push(clone);
+    if (signature && rowHasLyrics(clone) && !rowIndexBySignature.has(signature)) {
+      rowIndexBySignature.set(signature, rows.length - 1);
+    }
+  });
+
+  return { rows, mergedRows };
 }
 
 function compactRows(rows) {
@@ -1337,8 +1420,14 @@ function applySheetDensity(element, score, mode) {
     0
   );
   const weight = rows.length + (lyricLines * 0.12) + (score.sections.length * 0.4) + (mode === "chord" ? 1 : 0);
+  element.classList.remove("compact-layout", "dense-layout", "single-page-layout");
   element.classList.toggle("compact-layout", weight > 8);
   element.classList.toggle("dense-layout", weight > 12);
+  element.classList.toggle("single-page-layout", weight > 16 || rows.length > 10 || lyricLines > 44);
+
+  if (element.getClientRects().length && element.scrollHeight > 1123) {
+    element.classList.add("compact-layout", "dense-layout", "single-page-layout");
+  }
 }
 
 function renderAccompanimentSheet(score) {
@@ -1463,12 +1552,16 @@ function updateScoreStats(score) {
       .filter(Boolean)
   );
   const lyricLines = measures.reduce((sum, measure) => sum + (measure.lyrics?.length || 0), 0);
+  const mergedRows = score.compaction?.mergedRows || 0;
   const meta = score.metadata;
   const checks = [
     meta.title && meta.title !== "未命名歌曲" ? ["ok", "歌名已填入"] : ["warn", "建議補上歌名"],
     meta.playKey || meta.originalKey ? ["ok", "調性資料可用"] : ["warn", "建議補上原調或選調"],
     chordNames.size ? ["ok", `已解析 ${chordNames.size} 個和弦`] : ["warn", "沒有解析到和弦"],
-    lyricLines ? ["ok", `已對齊 ${lyricLines} 行歌詞`] : ["warn", "沒有歌詞，將只輸出和弦音型"]
+    lyricLines ? ["ok", `已對齊 ${lyricLines} 行歌詞`] : ["warn", "沒有歌詞，將只輸出和弦音型"],
+    mergedRows
+      ? ["ok", `已將 ${mergedRows} 列重複伴奏疊成編號歌詞`]
+      : ["ok", "目前沒有需要疊合的重複伴奏列"]
   ];
 
   els.scoreStats.innerHTML = `
@@ -1476,6 +1569,7 @@ function updateScoreStats(score) {
       <div class="stat-item"><strong>${score.sections.length}</strong><span>段落</span></div>
       <div class="stat-item"><strong>${measures.length}</strong><span>小節</span></div>
       <div class="stat-item"><strong>${chordNames.size}</strong><span>和弦</span></div>
+      <div class="stat-item"><strong>${mergedRows}</strong><span>重疊列</span></div>
     </div>
     <ul class="check-list">
       ${checks.map(([type, text]) => `
@@ -1543,10 +1637,12 @@ async function handleDownload(action) {
 async function downloadJpg(element, filename) {
   const canvas = await renderA4Canvas(element);
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.94));
+  if (!blob) throw new Error("JPG 檔案產生失敗，請重新整理後再試一次。");
   triggerDownload(URL.createObjectURL(blob), filename);
 }
 
 async function downloadPdf(element, filename) {
+  if (!window.jspdf?.jsPDF) throw new Error("PDF 元件尚未載入，請重新整理後再試一次。");
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
   const canvas = await renderA4Canvas(element);
@@ -1555,6 +1651,7 @@ async function downloadPdf(element, filename) {
 }
 
 async function downloadBothPdf(filename) {
+  if (!window.jspdf?.jsPDF) throw new Error("PDF 元件尚未載入，請重新整理後再試一次。");
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
   const first = await renderA4Canvas(els["sheet-accompaniment"]);
@@ -1583,12 +1680,45 @@ async function renderA4Canvas(element) {
 
 async function renderElementCanvas(element) {
   if (!window.html2canvas) throw new Error("html2canvas 尚未載入。");
-  return html2canvas(element, {
-    scale: 2,
-    backgroundColor: "#ffffff",
-    useCORS: true,
-    windowWidth: Math.max(document.documentElement.clientWidth, 1200)
+  if (!element) throw new Error("找不到要下載的譜面。");
+
+  const exportHost = document.createElement("div");
+  const exportCopy = element.cloneNode(true);
+  const visibleWidth = element.getBoundingClientRect().width;
+
+  exportHost.setAttribute("aria-hidden", "true");
+  Object.assign(exportHost.style, {
+    position: "fixed",
+    left: "-100000px",
+    top: "0",
+    width: `${Math.max(visibleWidth, 794)}px`,
+    background: "#ffffff",
+    pointerEvents: "none",
+    zIndex: "-1"
   });
+  exportCopy.removeAttribute("id");
+  Object.assign(exportCopy.style, {
+    display: "block",
+    width: "794px",
+    maxWidth: "none",
+    margin: "0",
+    transform: "none"
+  });
+  exportHost.appendChild(exportCopy);
+  document.body.appendChild(exportHost);
+
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return await html2canvas(exportCopy, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      windowWidth: Math.max(document.documentElement.clientWidth, 1200)
+    });
+  } finally {
+    exportHost.remove();
+  }
 }
 
 function addCanvasToPdfPage(pdf, canvas, forceNewPage = false) {
