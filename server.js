@@ -3,6 +3,7 @@ const http = require("node:http");
 const path = require("node:path");
 const { URL } = require("node:url");
 const { chooseArrangement } = require("./api/_shared/arrangement");
+const pu = require("./api/_shared/pu");
 
 const PORT = Number(process.env.PORT || 5173);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -57,108 +58,32 @@ server.listen(PORT, () => {
 
 async function handleSearch(url, res) {
   const keyword = (url.searchParams.get("q") || "").trim();
-  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 500), 1), 500);
-  const pageSize = 100;
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 100), 1), 100);
 
   if (!keyword) {
     sendJson(res, 400, { error: "請輸入歌曲或歌手名稱。" });
     return;
   }
 
-  const firstHtml = await fetchSearchPage(keyword, 1, pageSize);
-  const total = parseTotalResults(firstHtml);
-  const firstResults = parseSearchResults(firstHtml);
-  const totalPages = Math.max(1, Math.ceil((total || firstResults.length) / pageSize));
-  const pagesToFetch = Math.min(totalPages, Math.ceil(limit / pageSize));
-
-  const pageHtmlList = [firstHtml];
-  if (pagesToFetch > 1) {
-    const rest = await Promise.all(
-      Array.from({ length: pagesToFetch - 1 }, (_, index) => fetchSearchPage(keyword, index + 2, pageSize))
-    );
-    pageHtmlList.push(...rest);
-  }
-
-  const seen = new Set();
-  const results = pageHtmlList
-    .flatMap((html) => parseSearchResults(html))
-    .filter((item) => {
-      if (!item.id || seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    })
-    .slice(0, limit);
+  const data = await pu.searchSongs(keyword, limit);
 
   sendJson(res, 200, {
     keyword,
-    total: total || results.length,
-    fetched: results.length,
-    complete: !total || results.length >= total,
-    results
+    total: data.total,
+    fetched: data.results.length,
+    complete: true,
+    results: data.results
   });
 }
 
 async function handleSong(url, res) {
   const idInput = (url.searchParams.get("id") || "").trim();
   const urlInput = (url.searchParams.get("url") || "").trim();
-  const id = extractSongId(idInput || urlInput);
-
-  if (!id) {
-    sendJson(res, 400, { error: "找不到有效的 91pu 歌曲 ID。" });
+  if (!idInput && !urlInput) {
+    sendJson(res, 400, { error: "請提供 91譜歌曲連結。" });
     return;
   }
-
-  const referer = normalize91puUrl(urlInput) || `${BASE_91PU}/song/2017/0701/${id}.html`;
-  const body = new URLSearchParams({
-    dopost: "ajax",
-    action: "getinfo",
-    itype: "big5Kk.wei",
-    id
-  });
-
-  const responseText = await fetchText(`${BASE_91PU}/91pubig5/song_ajax.php`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded; charset=utf-8",
-      referer,
-      "user-agent": "Mozilla/5.0"
-    },
-    body
-  });
-
-  let payload;
-  try {
-    payload = JSON.parse(responseText.replace(/^\uFEFF/, ""));
-  } catch {
-    sendJson(res, 502, { error: "91pu 回傳格式無法解析。" });
-    return;
-  }
-
-  if (payload.done !== "ok") {
-    sendJson(res, 502, { error: payload.done || "91pu 沒有回傳歌曲資料。" });
-    return;
-  }
-
-  const decodedTone = parseEncodedJson(payload.tone, 50);
-  const decodedBrush = parseEncodedJson(payload.sz, 15);
-  const sourceText = htmlToText(decodedTone?.lyric || "");
-
-  sendJson(res, 200, {
-    id,
-    title: payload.name || "",
-    artist: payload.singer || "",
-    lyricist: payload.lyrc || "",
-    composer: payload.tune || "",
-    originalKey: payload.originkey || decodedTone?.org?.k || "",
-    playKey: decodedTone?.key?.k || payload.formantone || payload.originkey || "",
-    maleKey: payload.formantone || "",
-    femaleKey: payload.forgirltone || "",
-    tempo: payload.tempo || "",
-    beat: normalizeBeat(payload.style || ""),
-    sourceText,
-    brush: decodedBrush || null,
-    url: referer
-  });
+  sendJson(res, 200, await pu.fetchSongData(urlInput || idInput));
 }
 
 async function handleArrangement(req, res) {

@@ -1,158 +1,51 @@
 const BASE_91PU = "https://www.91pu.com.tw";
+const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
-export async function fetchSearchPage(keyword, pageNo, pageSize) {
-  const searchUrl = new URL("/plus/search.php", BASE_91PU);
-  searchUrl.searchParams.set("keyword", keyword);
-  searchUrl.searchParams.set("pagesize", String(pageSize));
-  searchUrl.searchParams.set("PageNo", String(pageNo));
-  return fetchText(searchUrl, {
-    headers: { "user-agent": "Mozilla/5.0" }
-  });
+export async function searchSongs(keyword, limit = 100) {
+  const url = new URL("/api/search/search", BASE_91PU);
+  url.searchParams.set("keyword", keyword);
+  url.searchParams.set("size", String(Math.min(Math.max(limit, 1), 100)));
+  url.searchParams.set("searchType", "song");
+  const payload = await fetchJson(url);
+  const results = (payload.list || []).filter((item) => item.doc_type === "song").map(mapSearchResult);
+  return { total: Number(payload.pager?.total_count || results.length), results };
 }
 
-export async function fetchSongPayload(id, referer) {
-  const body = new URLSearchParams({
-    dopost: "ajax",
-    action: "getinfo",
-    itype: "big5Kk.wei",
-    id
-  });
-
-  const responseText = await fetchText(`${BASE_91PU}/91pubig5/song_ajax.php`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded; charset=utf-8",
-      referer,
-      "user-agent": "Mozilla/5.0"
-    },
-    body
-  });
-
-  return JSON.parse(responseText.replace(/^\uFEFF/, ""));
+export async function fetchSongData(idOrUrl) {
+  const id = await resolveSongId(idOrUrl);
+  if (!id) throw new Error("請貼上有效的 91譜歌曲連結，或從搜尋結果點選匯入。");
+  const info = await fetchJson(`${BASE_91PU}/api/song/${id}/info`);
+  const song = info.song || {};
+  const sheet = (song.sheets || []).find((item) => item.type === "guitar" && item.is_default)
+    || (song.sheets || []).find((item) => item.type === "guitar") || song.sheets?.[0];
+  if (!sheet?.id) throw new Error("這首歌沒有可讀取的公開和弦譜。");
+  const sheetPayload = await fetchJson(`${BASE_91PU}/api/song/${id}/sheet/${sheet.type}/${sheet.id}`);
+  const sheetData = sheetPayload.sheet?.sheet_data || {};
+  const sourceText = (sheetData.content?.chord?.parse || []).map((line) => line.content || "").filter(Boolean).join("\n");
+  const tonalities = sheetData.tonalities || {};
+  const original = tonalities.list?.find((item) => item.is_default)?.sheet_key?.[0]?.key || "";
+  const playKey = tonalities.editorKey?.[0]?.key || original;
+  return {
+    id, title: song.title || "", artist: names(song.singers), lyricist: names(song.lyricists), composer: names(song.composers),
+    originalKey: original, playKey, tempo: String(sheetData.rhythm?.bpm || ""),
+    beat: Array.isArray(sheetData.rhythm?.measure) ? sheetData.rhythm.measure.join("/") : "4/4",
+    sourceText, brush: sheetData.rhythm?.strums?.length ? { count: sheetData.rhythm.strums.length } : null,
+    url: `${BASE_91PU}/sheet/song/${id}`
+  };
 }
 
-export async function fetchText(url, options = {}) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    if (response.status === 404 || response.status === 405) {
-      throw new Error("91譜目前拒絕此自動匯入請求；請改貼和弦/歌詞文字或上傳譜面圖片。 ");
-    }
-    throw new Error(`連線失敗：${response.status} ${response.statusText}`);
-  }
-  return response.text();
-}
-
-export function parseSearchResults(html) {
-  const tbody = html.match(/<tbody[^>]*id=["']songlist["'][^>]*>([\s\S]*?)<\/tbody>/i)?.[1] || "";
-  const rows = tbody.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-
-  return rows.map((row) => {
-    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => match[1]);
-    const href = cells[0]?.match(/href=["']([^"']+)["']/i)?.[1] || "";
-    const absoluteUrl = normalize91puUrl(href);
-    const id = extractSongId(absoluteUrl);
-
-    return {
-      id,
-      title: stripHtml(cells[0] || ""),
-      artist: stripHtml(cells[1] || ""),
-      lyricist: stripHtml(cells[2] || ""),
-      composer: stripHtml(cells[3] || ""),
-      views: Number(stripHtml(cells[4] || "0").replace(/[^\d]/g, "")) || 0,
-      url: absoluteUrl
-    };
-  }).filter((item) => item.id && item.title);
-}
-
-export function parseTotalResults(html) {
-  const totalText = html.match(/有\s*<code>\s*(\d+)\s*<\/code>\s*個結果/i)?.[1]
-    || html.match(/TotalResult=(\d+)/i)?.[1];
-  return Number(totalText || 0) || 0;
-}
-
-export function extractSongId(input) {
-  if (!input) return "";
-  const text = String(input);
-  const direct = text.match(/^\d+$/)?.[0];
+export async function resolveSongId(input) {
+  const raw = String(input || "").trim();
+  if (new RegExp(`^${UUID_PATTERN}$`, "i").test(raw)) return raw;
+  const direct = raw.match(new RegExp(`/sheet/song/(${UUID_PATTERN})`, "i"))?.[1];
   if (direct) return direct;
-  return text.match(/\/song\/(?:\d+\/){2}(\d+)\.html/i)?.[1]
-    || text.match(/[?&]id=(\d+)/i)?.[1]
-    || text.match(/(\d{3,})/)?.[1]
-    || "";
+  const safeUrl = normalize91puUrl(raw);
+  if (!safeUrl) return "";
+  const response = await fetch(safeUrl, { headers: { "user-agent": "Mozilla/5.0" }, redirect: "follow" });
+  return response.url.match(new RegExp(`/sheet/song/(${UUID_PATTERN})`, "i"))?.[1] || "";
 }
 
-export function normalize91puUrl(input) {
-  if (!input) return "";
-  try {
-    const url = new URL(String(input), BASE_91PU);
-    if (!/(^|\.)91pu\.com\.tw$/i.test(url.hostname)) return "";
-    url.protocol = "https:";
-    return url.toString();
-  } catch {
-    return "";
-  }
-}
-
-export function parseEncodedJson(value, interval) {
-  const decoded = decode91Payload(value, interval);
-  if (!decoded) return null;
-  try {
-    return JSON.parse(decoded);
-  } catch {
-    return null;
-  }
-}
-
-export function decode91Payload(value, interval) {
-  if (!value || !String(value).startsWith("B:")) return value || "";
-
-  let text = String(value).slice(2);
-  const prefixLength = Number(text.slice(0, 3));
-  text = text.slice(3);
-  text = text.slice(1);
-
-  let base64 = "";
-  if (prefixLength > 0) {
-    base64 = text.slice(0, prefixLength);
-    text = text.slice(prefixLength + 1);
-  }
-
-  while (text.length > 0) {
-    base64 = text.slice(0, interval) + base64;
-    text = text.slice(interval + 1);
-  }
-
-  return Buffer.from(base64, "base64").toString("utf8");
-}
-
-export function htmlToText(html) {
-  return decodeEntities(String(html)
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\u00a0/g, " ")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim());
-}
-
-export function normalizeBeat(value) {
-  const beat = String(value || "").match(/\d+\s*\/\s*\d+/)?.[0];
-  return beat ? beat.replace(/\s+/g, "") : "4/4";
-}
-
-function stripHtml(html) {
-  return decodeEntities(String(html)
-    .replace(/<[^>]+>/g, "")
-    .replace(/\u00a0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim());
-}
-
-function decodeEntities(text) {
-  const named = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " " };
-  return String(text)
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
-    .replace(/&([a-z]+);/gi, (_, name) => named[name] || `&${name};`);
-}
+function mapSearchResult(item) { return { id: item.id, title: item.title || "", artist: names(item.singers), lyricist: names(item.lyricists), composer: names(item.composers), views: 0, url: `${BASE_91PU}/sheet/song/${item.id}` }; }
+async function fetchJson(url) { const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0" } }); if (!response.ok) throw new Error(`91譜資料讀取失敗：${response.status}`); return response.json(); }
+function normalize91puUrl(input) { try { const url = new URL(String(input), BASE_91PU); return /(^|\.)91pu\.com\.tw$/i.test(url.hostname) ? url.toString() : ""; } catch { return ""; } }
+function names(items) { return (items || []).map((item) => String(item.name || "").trim()).filter(Boolean).join(" / "); }
