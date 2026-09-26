@@ -795,26 +795,50 @@ function renderSearchResults(data) {
 
 async function importSong(id, sourceUrl = "") {
   setStatus("匯入中");
+  let data;
   try {
-    const params = new URLSearchParams({ id });
-    if (sourceUrl) params.set("url", sourceUrl);
-    const response = await fetch(`/api/song?${params.toString()}`);
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "匯入失敗");
+    // Search results include a stable song ID. Prefer it over a URL so redirects cannot block import.
+    data = await fetchSongPayload(id || sourceUrl);
+  } catch (error) {
+    if (id && sourceUrl) {
+      try {
+        data = await fetchSongPayload(sourceUrl);
+      } catch {
+        return showImportError(error, id);
+      }
+    } else {
+      return showImportError(error, id);
+    }
+  }
 
+  try {
     applySongData(data);
     const brushText = formatBrush(data.brush);
     els.ocrStatus.textContent = brushText ? `已匯入。${brushText}` : "已匯入 91pu 歌曲資料。";
   } catch (error) {
-    if (id === DEMO_SONG.id) {
-      applySongData(DEMO_FALLBACK);
-      els.ocrStatus.textContent = "91pu 暫時無法連線，已載入內建範例。";
-      setStatus("已載入範例", "warn");
-      return;
-    }
-    setStatus("匯入失敗", "error");
-    els.ocrStatus.textContent = error.message;
+    // Preserve the imported source text when only local rendering fails.
+    setStatus("已匯入，請按轉譜", "warn");
+    els.ocrStatus.textContent = `歌曲資料已匯入，但譜面產生失敗：${error.message}`;
   }
+}
+
+async function fetchSongPayload(song) {
+  const response = await fetch(`/api/song?${new URLSearchParams({ id: song }).toString()}`, { cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `匯入失敗（${response.status}）`);
+  if (!String(data.sourceText || "").trim()) throw new Error("這首歌沒有可讀取的公開和弦譜。");
+  return data;
+}
+
+function showImportError(error, id) {
+  if (id === DEMO_SONG.id) {
+    applySongData(DEMO_FALLBACK);
+    els.ocrStatus.textContent = "91pu 暫時無法連線，已載入內建範例。";
+    setStatus("已載入範例", "warn");
+    return;
+  }
+  setStatus("匯入失敗", "error");
+  els.ocrStatus.textContent = error.message || "無法讀取這首歌的公開和弦譜。";
 }
 
 function applySongData(data) {

@@ -50,9 +50,19 @@ function mapSearchResult(item) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0" } });
-  if (!response.ok) throw new Error(`91譜資料讀取失敗：${response.status}`);
-  return response.json();
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0" } });
+      if (response.ok) return response.json();
+      lastError = new Error(`91譜資料讀取失敗：${response.status}`);
+      if (![408, 429, 500, 502, 503, 504].includes(response.status)) throw lastError;
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+  throw lastError || new Error("91譜資料讀取失敗，請稍後再試。");
 }
 
 function normalize91puUrl(input) {

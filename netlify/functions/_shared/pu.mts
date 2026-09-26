@@ -46,6 +46,20 @@ export async function resolveSongId(input) {
 }
 
 function mapSearchResult(item) { return { id: item.id, title: item.title || "", artist: names(item.singers), lyricist: names(item.lyricists), composer: names(item.composers), views: 0, url: `${BASE_91PU}/sheet/song/${item.id}` }; }
-async function fetchJson(url) { const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0" } }); if (!response.ok) throw new Error(`91譜資料讀取失敗：${response.status}`); return response.json(); }
+async function fetchJson(url) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0" } });
+      if (response.ok) return response.json();
+      lastError = new Error(`91譜資料讀取失敗：${response.status}`);
+      if (![408, 429, 500, 502, 503, 504].includes(response.status)) throw lastError;
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+  throw lastError || new Error("91譜資料讀取失敗，請稍後再試。");
+}
 function normalize91puUrl(input) { try { const url = new URL(String(input), BASE_91PU); return /(^|\.)91pu\.com\.tw$/i.test(url.hostname) ? url.toString() : ""; } catch { return ""; } }
 function names(items) { return (items || []).map((item) => String(item.name || "").trim()).filter(Boolean).join(" / "); }
