@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { URL } = require("node:url");
+const { chooseArrangement } = require("./api/_shared/arrangement");
 
 const PORT = Number(process.env.PORT || 5173);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -31,6 +32,11 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/song") {
       await handleSong(url, res);
+      return;
+    }
+
+    if (url.pathname === "/api/arrange") {
+      await handleArrangement(req, res);
       return;
     }
 
@@ -155,6 +161,26 @@ async function handleSong(url, res) {
   });
 }
 
+async function handleArrangement(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  const body = await readJsonBody(req);
+  sendJson(res, 200, chooseArrangement(body.metadata || {}, body.sourceText || "", body.preferredStyle || "auto"));
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", () => {
+      try { resolve(body ? JSON.parse(body) : {}); } catch { reject(new Error("請提供有效資料")); }
+    });
+    req.on("error", reject);
+  });
+}
+
 function handleHealth(res) {
   sendJson(res, 200, {
     ok: true,
@@ -198,6 +224,9 @@ async function serveStatic(requestPath, res) {
 async function fetchText(url, options = {}) {
   const response = await fetch(url, options);
   if (!response.ok) {
+    if (response.status === 404 || response.status === 405) {
+      throw new Error("91譜目前拒絕此自動匯入請求；請改貼和弦/歌詞文字或上傳譜面圖片。 ");
+    }
     throw new Error(`連線失敗：${response.status} ${response.statusText}`);
   }
   return response.text();
@@ -244,9 +273,14 @@ function extractSongId(input) {
 
 function normalize91puUrl(input) {
   if (!input) return "";
-  if (String(input).startsWith("http")) return String(input);
-  if (String(input).startsWith("/")) return `${BASE_91PU}${input}`;
-  return `${BASE_91PU}/${input}`;
+  try {
+    const url = new URL(String(input), BASE_91PU);
+    if (!/(^|\.)91pu\.com\.tw$/i.test(url.hostname)) return "";
+    url.protocol = "https:";
+    return url.toString();
+  } catch {
+    return "";
+  }
 }
 
 function parseEncodedJson(value, interval) {

@@ -52,12 +52,29 @@
           </button>
         </div>
         <div class="input-row">
-          <input id="searchInput" type="search" placeholder="歌曲、歌手、作詞或作曲">
+          <input id="searchInput" type="search" placeholder="歌曲、歌手，或直接貼上 91譜連結">
           <button class="icon-button primary" id="searchButton" type="button">
             <i data-lucide="search"></i><span>搜尋</span>
           </button>
         </div>
         <div class="result-list" id="searchResults"></div>
+      </section>
+
+      <section class="control-block arrangement-block">
+        <div class="label-row">
+          <label for="arrangementStyle">智慧伴奏建議</label>
+          <button class="icon-button compact primary" id="arrangementButton" type="button">
+            <i data-lucide="sparkles"></i><span>分析伴奏</span>
+          </button>
+        </div>
+        <select id="arrangementStyle" aria-label="伴奏風格">
+          <option value="auto">自動選擇</option>
+          <option value="ballad">抒情分解</option>
+          <option value="pop">流行律動</option>
+          <option value="waltz">華爾滋</option>
+          <option value="jazz">爵士和聲</option>
+        </select>
+        <div class="arrangement-insight" id="arrangementInsight" aria-live="polite">匯入歌曲後可分析速度、拍號與和弦，選擇適合的鋼琴伴奏。</div>
       </section>
 
       <section class="control-block source-block main-source">

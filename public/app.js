@@ -2,7 +2,13 @@ const els = {};
 const state = {
   imageDataUrl: "",
   score: null,
-  previewMode: "both"
+  previewMode: "both",
+  arrangement: {
+    style: "ballad",
+    label: "抒情分解",
+    summary: "以右手分解和弦、左手根音與五度建立穩定伴奏。",
+    source: "local"
+  }
 };
 
 const DRAFT_KEY = "piano-number-score-translator:draft:v2";
@@ -99,6 +105,9 @@ function bindElements() {
     "searchInput",
     "searchButton",
     "searchResults",
+    "arrangementStyle",
+    "arrangementButton",
+    "arrangementInsight",
     "dropZone",
     "demoSongButton",
     "clearWorkspaceButton",
@@ -147,6 +156,15 @@ function bindEvents() {
     if (event.key === "Enter") search91pu();
   });
   els.demoSongButton.addEventListener("click", loadDemoSong);
+  els.arrangementButton.addEventListener("click", analyzeArrangement);
+  els.arrangementStyle.addEventListener("change", () => {
+    const style = els.arrangementStyle.value;
+    if (style !== "auto") {
+      state.arrangement = localArrangement(style, readMetadata(), els.sourceText.value);
+      renderArrangementInsight();
+      parseAndRender();
+    }
+  });
   els.clearWorkspaceButton.addEventListener("click", clearWorkspace);
   els.copyRemoteUrlButton.addEventListener("click", copyRemoteUrl);
   els.openRemoteUrlButton.addEventListener("click", openRemoteUrl);
@@ -711,6 +729,11 @@ async function search91pu(queryOverride) {
     return;
   }
 
+  if (is91puSongUrl(query)) {
+    await importSong("", query);
+    return;
+  }
+
   setStatus("搜尋中");
   els.searchResults.innerHTML = "";
 
@@ -724,6 +747,15 @@ async function search91pu(queryOverride) {
   } catch (error) {
     setStatus("搜尋失敗", "error");
     els.searchResults.innerHTML = `<p class="hint-line">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function is91puSongUrl(value) {
+  try {
+    const url = new URL(value);
+    return /(^|\.)91pu\.com\.tw$/i.test(url.hostname) && /\/song\//i.test(url.pathname);
+  } catch {
+    return false;
   }
 }
 
@@ -788,8 +820,61 @@ function applySongData(data) {
   els.sourceText.value = data.sourceText || "";
 
   parseAndRender();
+  void analyzeArrangement(true);
   saveDraft();
   setStatus("已匯入");
+}
+
+async function analyzeArrangement(silent = false) {
+  const metadata = readMetadata();
+  const sourceText = els.sourceText.value.trim();
+  if (!sourceText && !metadata.title) {
+    if (!silent) setStatus("請先匯入或輸入歌曲", "warn");
+    return;
+  }
+
+  if (!silent) setStatus("分析伴奏中");
+  try {
+    const response = await fetch("/api/arrange", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ metadata, sourceText, preferredStyle: els.arrangementStyle.value })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "伴奏分析失敗");
+    state.arrangement = data;
+  } catch {
+    state.arrangement = localArrangement(els.arrangementStyle.value, metadata, sourceText);
+  }
+
+  els.arrangementStyle.value = state.arrangement.style || "ballad";
+  renderArrangementInsight();
+  parseAndRender();
+  if (!silent) setStatus("伴奏建議已更新");
+}
+
+function localArrangement(style, metadata = {}, sourceText = "") {
+  const tempo = Number(metadata.tempo) || 80;
+  const beat = metadata.beat || "4/4";
+  const selected = style === "auto"
+    ? (beat === "3/4" || beat === "6/8" ? "waltz" : tempo >= 105 ? "pop" : "ballad")
+    : style;
+  const presets = {
+    ballad: ["抒情分解", "右手以 1-3-5-3 分解和弦，左手根音與五度，保留歌聲空間。"],
+    pop: ["流行律動", "右手以切分和弦音型帶動律動，左手以根音和五度穩定節拍。"],
+    waltz: ["華爾滋", "第一拍放低音，後兩拍輕彈和弦，適合 3/4、6/8 與慢搖擺。"],
+    jazz: ["爵士和聲", "保留七和弦與延伸音，右手以 3-7 為重心，左手根音導向。"]
+  };
+  const [label, summary] = presets[selected] || presets.ballad;
+  const chordCount = findChordTokens(sourceText).length;
+  return { style: selected, label, summary: `${summary}${chordCount ? ` 已辨識 ${chordCount} 個和弦。` : ""}`, source: "local" };
+}
+
+function renderArrangementInsight() {
+  if (!els.arrangementInsight) return;
+  const arrangement = state.arrangement || localArrangement("ballad");
+  const source = arrangement.source === "ai" ? "AI Gateway" : "智慧分析";
+  els.arrangementInsight.innerHTML = `<strong>${escapeHtml(arrangement.label || "伴奏建議")}</strong><br>${escapeHtml(arrangement.summary || "")}<span class="analysis-source">${source}</span>`;
 }
 
 function loadImageFile(file) {
@@ -1359,8 +1444,17 @@ function chordToDegrees(chordLabel) {
   const fifth = numbers[2] || root;
   const seventh = numbers[3] || "-";
 
+  const style = state.arrangement?.style || "ballad";
+  const pattern = style === "pop"
+    ? [root, fifth, third, fifth, root, fifth].join(" ")
+    : style === "waltz"
+      ? [root, third, fifth].join(" ")
+      : style === "jazz"
+        ? [third, seventh === "-" ? fifth : seventh, root, fifth].join(" ")
+        : [third, root, third, fifth, seventh === "-" ? root : seventh, third].join(" ");
+
   return {
-    pattern: [third, root, third, fifth, seventh === "-" ? root : seventh, third].join(" "),
+    pattern,
     right: [root, third, fifth, seventh].join(" "),
     left: [bass, "-", `${fifth}.`, "-"].join(" ")
   };

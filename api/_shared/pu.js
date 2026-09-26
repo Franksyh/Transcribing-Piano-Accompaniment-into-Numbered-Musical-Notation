@@ -34,6 +34,9 @@ async function fetchSongPayload(id, referer) {
 async function fetchText(url, options = {}) {
   const response = await fetch(url, options);
   if (!response.ok) {
+    if (response.status === 404 || response.status === 405) {
+      throw new Error("91譜目前拒絕此自動匯入請求；請改貼和弦/歌詞文字或上傳譜面圖片。 ");
+    }
     throw new Error(`連線失敗：${response.status} ${response.statusText}`);
   }
   return response.text();
@@ -80,9 +83,14 @@ function extractSongId(input) {
 
 function normalize91puUrl(input) {
   if (!input) return "";
-  if (String(input).startsWith("http")) return String(input);
-  if (String(input).startsWith("/")) return `${BASE_91PU}${input}`;
-  return `${BASE_91PU}/${input}`;
+  try {
+    const url = new URL(String(input), BASE_91PU);
+    if (!/(^|\.)91pu\.com\.tw$/i.test(url.hostname)) return "";
+    url.protocol = "https:";
+    return url.toString();
+  } catch {
+    return "";
+  }
 }
 
 function parseEncodedJson(value, interval) {
