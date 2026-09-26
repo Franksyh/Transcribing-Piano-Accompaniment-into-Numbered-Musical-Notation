@@ -729,8 +729,10 @@ async function search91pu(queryOverride) {
     return;
   }
 
-  if (is91puSongUrl(query)) {
-    await importSong("", query);
+  const songUrl = extract91puSongUrl(query);
+  if (songUrl) {
+    els.searchInput.value = songUrl;
+    await importSong("", songUrl);
     return;
   }
 
@@ -750,12 +752,19 @@ async function search91pu(queryOverride) {
   }
 }
 
-function is91puSongUrl(value) {
+function extract91puSongUrl(value) {
+  const candidate = String(value || "")
+    .trim()
+    .match(/(?:https?:\/\/)?(?:www\.)?91pu\.com\.tw\/[^\s<>"')]+/i)?.[0];
+
+  if (!candidate) return "";
+
   try {
-    const url = new URL(value);
-    return /(^|\.)91pu\.com\.tw$/i.test(url.hostname) && /\/song\//i.test(url.pathname);
+    const url = new URL(/^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`);
+    if (!/(^|\.)91pu\.com\.tw$/i.test(url.hostname) || !/\/song\//i.test(url.pathname)) return "";
+    return url.toString();
   } catch {
-    return false;
+    return "";
   }
 }
 
