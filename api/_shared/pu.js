@@ -9,12 +9,33 @@ class SongAccessError extends Error {
 }
 
 async function searchSongs(keyword, limit = 100) {
+  const [songSearch, lyricSearch] = await Promise.allSettled([
+    searchSongsByType(keyword, limit, "song"),
+    searchSongsByType(keyword, limit, "lyric")
+  ]);
+  const successful = [songSearch, lyricSearch]
+    .filter((result) => result.status === "fulfilled")
+    .flatMap((result) => result.value.results);
+  if (!successful.length) {
+    const error = songSearch.reason || lyricSearch.reason;
+    throw error || new Error("91譜搜尋暫時無法使用。");
+  }
+
+  const unique = new Map();
+  successful.forEach((item) => {
+    if (!unique.has(item.id)) unique.set(item.id, item);
+  });
+  const results = [...unique.values()].slice(0, Math.min(Math.max(limit, 1), 100));
+  return { total: results.length, results };
+}
+
+async function searchSongsByType(keyword, limit, searchType) {
   const url = new URL("/api/search/search", BASE_91PU);
   url.searchParams.set("keyword", keyword);
   url.searchParams.set("size", String(Math.min(Math.max(limit, 1), 100)));
-  url.searchParams.set("searchType", "song");
+  url.searchParams.set("searchType", searchType);
   const payload = await fetchJson(url);
-  const results = (payload.list || []).filter((item) => item.doc_type === "song").map(mapSearchResult);
+  const results = (payload.list || []).filter((item) => item.doc_type === "song").map((item) => mapSearchResult(item, searchType));
   return { total: Number(payload.pager?.total_count || results.length), results };
 }
 
@@ -64,8 +85,8 @@ async function resolveSongId(input) {
   return response.url.match(new RegExp(`/sheet/song/(${UUID_PATTERN})`, "i"))?.[1] || "";
 }
 
-function mapSearchResult(item) {
-  return { id: item.id, title: item.title || "", artist: names(item.singers), lyricist: names(item.lyricists), composer: names(item.composers), views: 0, url: `${BASE_91PU}/sheet/song/${item.id}` };
+function mapSearchResult(item, matchType = "song") {
+  return { id: item.id, title: item.title || "", artist: names(item.singers), lyricist: names(item.lyricists), composer: names(item.composers), matchType, views: 0, url: `${BASE_91PU}/sheet/song/${item.id}` };
 }
 
 async function fetchJson(url) {

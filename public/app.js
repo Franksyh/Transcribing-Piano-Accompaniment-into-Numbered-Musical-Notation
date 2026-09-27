@@ -771,7 +771,7 @@ function extract91puSongUrl(value) {
 function renderSearchResults(data) {
   const results = data.results || [];
   if (!results.length) {
-    els.searchResults.innerHTML = `<p class="hint-line">沒有找到結果，可以換歌名、歌手或貼上 91pu 內容。</p>`;
+    els.searchResults.innerHTML = `<p class="hint-line">沒有找到結果，可以換歌名、歌詞、歌手或貼上 91譜連結。</p>`;
     return;
   }
 
@@ -779,7 +779,7 @@ function renderSearchResults(data) {
     <div class="result-item">
       <div>
         <div class="result-title">${escapeHtml(item.title)}</div>
-        <div class="result-meta">${escapeHtml([item.artist, item.lyricist, item.composer].filter(Boolean).join(" / "))}</div>
+        <div class="result-meta">${escapeHtml([item.artist, item.lyricist, item.composer].filter(Boolean).join(" / "))}<span class="search-match">${item.matchType === "lyric" ? "歌詞符合" : "歌名／歌手"}</span></div>
       </div>
       <div class="result-actions">
         <a class="icon-button" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="在 91譜開啟" aria-label="在 91譜開啟">

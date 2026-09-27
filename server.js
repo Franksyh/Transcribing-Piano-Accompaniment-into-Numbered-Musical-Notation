@@ -61,7 +61,7 @@ async function handleSearch(url, res) {
   const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 100), 1), 100);
 
   if (!keyword) {
-    sendJson(res, 400, { error: "請輸入歌曲或歌手名稱。" });
+    sendJson(res, 400, { error: "請輸入歌名、歌詞或歌手名稱。" });
     return;
   }
 

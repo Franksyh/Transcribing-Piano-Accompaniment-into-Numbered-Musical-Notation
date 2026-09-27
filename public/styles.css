@@ -364,6 +364,17 @@ select:focus,
   line-height: 1.45;
 }
 
+.search-match {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #e5f6f3;
+  color: #11634f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .drop-zone {
   min-height: 178px;
   display: grid;
