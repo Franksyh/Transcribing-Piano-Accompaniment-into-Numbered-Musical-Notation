@@ -16,22 +16,34 @@ export async function fetchSongData(idOrUrl) {
   if (!id) throw new Error("請貼上有效的 91譜歌曲連結，或從搜尋結果點選匯入。");
   const info = await fetchJson(`${BASE_91PU}/api/song/${id}/info`);
   const song = info.song || {};
-  const sheet = (song.sheets || []).find((item) => item.type === "guitar" && item.is_default)
-    || (song.sheets || []).find((item) => item.type === "guitar") || song.sheets?.[0];
-  if (!sheet?.id) throw new Error("這首歌沒有可讀取的公開和弦譜。");
-  const sheetPayload = await fetchJson(`${BASE_91PU}/api/song/${id}/sheet/${sheet.type}/${sheet.id}`);
-  const sheetData = sheetPayload.sheet?.sheet_data || {};
-  const sourceText = (sheetData.content?.chord?.parse || []).map((line) => line.content || "").filter(Boolean).join("\n");
-  const tonalities = sheetData.tonalities || {};
-  const original = tonalities.list?.find((item) => item.is_default)?.sheet_key?.[0]?.key || "";
-  const playKey = tonalities.editorKey?.[0]?.key || original;
-  return {
-    id, title: song.title || "", artist: names(song.singers), lyricist: names(song.lyricists), composer: names(song.composers),
-    originalKey: original, playKey, tempo: String(sheetData.rhythm?.bpm || ""),
-    beat: Array.isArray(sheetData.rhythm?.measure) ? sheetData.rhythm.measure.join("/") : "4/4",
-    sourceText, brush: sheetData.rhythm?.strums?.length ? { count: sheetData.rhythm.strums.length } : null,
-    url: `${BASE_91PU}/sheet/song/${id}`
-  };
+  const sheets = [...(song.sheets || [])]
+    .filter((item) => item?.id && item?.type)
+    .sort((left, right) => Number(right.type === "guitar") - Number(left.type === "guitar") || Number(Boolean(right.is_default)) - Number(Boolean(left.is_default)));
+  if (!sheets.length) throw new Error("這首歌沒有可讀取的公開和弦譜。");
+
+  let lastError;
+  for (const sheet of sheets) {
+    try {
+      const sheetPayload = await fetchJson(`${BASE_91PU}/api/song/${id}/sheet/${sheet.type}/${sheet.id}`);
+      const sheetData = sheetPayload.sheet?.sheet_data || {};
+      const sourceText = (sheetData.content?.chord?.parse || []).map((line) => line.content || "").filter(Boolean).join("\n");
+      if (!sourceText) throw new Error(`譜別 ${sheet.id} 沒有公開和弦內容。`);
+      const tonalities = sheetData.tonalities || {};
+      const original = tonalities.list?.find((item) => item.is_default)?.sheet_key?.[0]?.key || "";
+      const playKey = tonalities.editorKey?.[0]?.key || original;
+      return {
+        id, title: song.title || "", artist: names(song.singers), lyricist: names(song.lyricists), composer: names(song.composers),
+        originalKey: original, playKey, tempo: String(sheetData.rhythm?.bpm || ""),
+        beat: Array.isArray(sheetData.rhythm?.measure) ? sheetData.rhythm.measure.join("/") : "4/4",
+        sourceText, brush: sheetData.rhythm?.strums?.length ? { count: sheetData.rhythm.strums.length } : null,
+        url: `${BASE_91PU}/sheet/song/${id}`
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("這首歌沒有可讀取的公開和弦譜。");
 }
 
 export async function resolveSongId(input) {
@@ -50,7 +62,15 @@ async function fetchJson(url) {
   let lastError;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "Mozilla/5.0" } });
+      const response = await fetch(url, {
+        headers: {
+          accept: "application/json",
+          "accept-language": "zh-TW,zh;q=0.9,en;q=0.8",
+          referer: `${BASE_91PU}/`,
+          "user-agent": "Mozilla/5.0"
+        },
+        signal: AbortSignal.timeout(8000)
+      });
       if (response.ok) return response.json();
       lastError = new Error(`91譜資料讀取失敗：${response.status}`);
       if (![408, 429, 500, 502, 503, 504].includes(response.status)) throw lastError;
