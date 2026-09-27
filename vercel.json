@@ -2,7 +2,6 @@
   "cleanUrls": false,
   "trailingSlash": false,
   "regions": ["hkg1"],
-  "functionFailoverRegions": ["sin1", "iad1"],
   "functions": {
     "api/*.js": {
       "maxDuration": 30
