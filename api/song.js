@@ -1,4 +1,4 @@
-const { fetchSongData } = require("./_shared/pu");
+const { fetchSongData, isSongAccessError } = require("./_shared/pu");
 
 module.exports = async function handler(req, res) {
   const id = String(Array.isArray(req.query.id) ? req.query.id[0] : req.query.id || "").trim();
@@ -13,7 +13,12 @@ module.exports = async function handler(req, res) {
     return json(res, payload);
   } catch (error) {
     console.error("[song-import] failed", { song: songReference(source), error: error.message || String(error) });
-    return json(res, { error: error.message || "匯入失敗" }, 502);
+    const needsLogin = isSongAccessError(error);
+    return json(res, {
+      error: error.message || "匯入失敗",
+      code: needsLogin ? "91PU_LOGIN_REQUIRED" : "91PU_IMPORT_FAILED",
+      sourceUrl: songUrl(source)
+    }, needsLogin ? 403 : 502);
   }
 };
 
@@ -26,4 +31,9 @@ function json(res, payload, status = 200) {
 
 function songReference(value) {
   return String(value || "").match(/[0-9a-f]{8}-[0-9a-f-]{27}/i)?.[0] || String(value || "").slice(0, 80);
+}
+
+function songUrl(value) {
+  const id = songReference(value);
+  return /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id) ? `https://www.91pu.com.tw/sheet/song/${id}` : "";
 }

@@ -1,6 +1,13 @@
 const BASE_91PU = "https://www.91pu.com.tw";
 const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
+class SongAccessError extends Error {
+  constructor() {
+    super("這份 91譜需要登入或訂閱權限，無法從公開資料匯入。");
+    this.code = "91PU_LOGIN_REQUIRED";
+  }
+}
+
 async function searchSongs(keyword, limit = 100) {
   const url = new URL("/api/search/search", BASE_91PU);
   url.searchParams.set("keyword", keyword);
@@ -74,15 +81,22 @@ async function fetchJson(url) {
         },
         signal: AbortSignal.timeout(8000)
       });
-      if (response.ok) return response.json();
+      const payload = await response.json().catch(() => null);
+      if (requiresLogin(response, payload)) throw new SongAccessError();
+      if (response.ok) return payload;
       lastError = new Error(`91譜資料讀取失敗：${response.status}`);
-      if (![408, 429, 500, 502, 503, 504].includes(response.status)) throw lastError;
+      if (![408, 429, 500, 502, 503, 504].includes(response.status)) lastError.retryable = false;
     } catch (error) {
+      if (error?.code === "91PU_LOGIN_REQUIRED" || error?.retryable === false) throw error;
       lastError = error;
     }
     if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
   }
   throw lastError || new Error("91譜資料讀取失敗，請稍後再試。");
+}
+
+function requiresLogin(response, payload) {
+  return response.status === 403 && (payload?.message_code === 1007 || /permission requires login/i.test(String(payload?.message || "")));
 }
 
 function normalize91puUrl(input) {
@@ -91,4 +105,6 @@ function normalize91puUrl(input) {
 
 function names(items) { return (items || []).map((item) => String(item.name || "").trim()).filter(Boolean).join(" / "); }
 
-module.exports = { searchSongs, fetchSongData, resolveSongId, normalize91puUrl };
+function isSongAccessError(error) { return error?.code === "91PU_LOGIN_REQUIRED"; }
+
+module.exports = { searchSongs, fetchSongData, resolveSongId, normalize91puUrl, isSongAccessError };

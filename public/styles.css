@@ -331,6 +331,26 @@ select:focus,
   background: #fbfcfd;
 }
 
+.result-item.restricted {
+  border-color: #e8c977;
+  background: #fffdf6;
+}
+
+.result-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-actions .icon-button {
+  min-width: 34px;
+}
+
+.result-access-note {
+  color: #8a5a00;
+  font-weight: 700;
+}
+
 .result-title {
   overflow-wrap: anywhere;
   color: #24364b;

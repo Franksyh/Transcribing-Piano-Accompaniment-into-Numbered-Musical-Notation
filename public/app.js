@@ -781,19 +781,24 @@ function renderSearchResults(data) {
         <div class="result-title">${escapeHtml(item.title)}</div>
         <div class="result-meta">${escapeHtml([item.artist, item.lyricist, item.composer].filter(Boolean).join(" / "))}</div>
       </div>
-      <button type="button" class="icon-button" data-import="${escapeHtml(item.id)}" data-url="${escapeHtml(item.url)}" title="匯入">
-        <i data-lucide="download-cloud"></i><span>匯入</span>
-      </button>
+      <div class="result-actions">
+        <a class="icon-button" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="在 91譜開啟" aria-label="在 91譜開啟">
+          <i data-lucide="external-link"></i>
+        </a>
+        <button type="button" class="icon-button" data-import="${escapeHtml(item.id)}" data-url="${escapeHtml(item.url)}" title="匯入">
+          <i data-lucide="download-cloud"></i><span>匯入</span>
+        </button>
+      </div>
     </div>
   `).join("");
 
   els.searchResults.querySelectorAll("[data-import]").forEach((button) => {
-    button.addEventListener("click", () => importSong(button.dataset.import, button.dataset.url));
+    button.addEventListener("click", () => importSong(button.dataset.import, button.dataset.url, button));
   });
   refreshIcons();
 }
 
-async function importSong(id, sourceUrl = "") {
+async function importSong(id, sourceUrl = "", trigger = null) {
   setStatus("匯入中");
   let data;
   try {
@@ -804,10 +809,10 @@ async function importSong(id, sourceUrl = "") {
       try {
         data = await fetchSongPayload(sourceUrl);
       } catch {
-        return showImportError(error, id);
+        return showImportError(error, id, sourceUrl, trigger);
       }
     } else {
-      return showImportError(error, id);
+      return showImportError(error, id, sourceUrl, trigger);
     }
   }
 
@@ -825,20 +830,45 @@ async function importSong(id, sourceUrl = "") {
 async function fetchSongPayload(song) {
   const response = await fetch(`/api/song?${new URLSearchParams({ id: song }).toString()}`, { cache: "no-store" });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `匯入失敗（${response.status}）`);
+  if (!response.ok) {
+    const error = new Error(data.error || `匯入失敗（${response.status}）`);
+    error.code = data.code || "";
+    error.sourceUrl = data.sourceUrl || "";
+    throw error;
+  }
   if (!String(data.sourceText || "").trim()) throw new Error("這首歌沒有可讀取的公開和弦譜。");
   return data;
 }
 
-function showImportError(error, id) {
+function showImportError(error, id, sourceUrl = "", trigger = null) {
   if (id === DEMO_SONG.id) {
     applySongData(DEMO_FALLBACK);
     els.ocrStatus.textContent = "91pu 暫時無法連線，已載入內建範例。";
     setStatus("已載入範例", "warn");
     return;
   }
+  if (error.code === "91PU_LOGIN_REQUIRED") {
+    markRestrictedResult(trigger, error.sourceUrl || sourceUrl);
+    setStatus("此譜需要 91譜權限", "warn");
+    els.ocrStatus.textContent = "此譜非公開內容。請在 91譜原頁依你的權限取得資料後，貼上和弦／歌詞或上傳已授權的圖片。";
+    return;
+  }
   setStatus("匯入失敗", "error");
   els.ocrStatus.textContent = error.message || "無法讀取這首歌的公開和弦譜。";
+}
+
+function markRestrictedResult(trigger, sourceUrl) {
+  const item = trigger?.closest(".result-item");
+  if (!item || item.querySelector(".result-access-note")) return;
+  item.classList.add("restricted");
+  trigger.disabled = true;
+  trigger.title = "此譜需 91譜權限";
+  const note = document.createElement("div");
+  note.className = "result-access-note";
+  note.textContent = "需 91譜登入或訂閱權限";
+  item.querySelector(".result-meta")?.append(document.createElement("br"), note);
+  const link = item.querySelector("a[href]");
+  if (sourceUrl && link) link.href = sourceUrl;
 }
 
 function applySongData(data) {
