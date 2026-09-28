@@ -1,4 +1,4 @@
-const CACHE_NAME = "piano-score-converter-v7";
+const CACHE_NAME = "piano-score-converter-v8";
 const APP_SHELL = [
   "./",
   "./index.html",

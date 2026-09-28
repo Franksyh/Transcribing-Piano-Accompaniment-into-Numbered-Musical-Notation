@@ -105,6 +105,8 @@ function bindElements() {
     "searchInput",
     "searchButton",
     "searchResults",
+    "uploadChartButton",
+    "editSourceShortcut",
     "arrangementStyle",
     "arrangementButton",
     "arrangementInsight",
@@ -156,6 +158,15 @@ function bindEvents() {
     if (event.key === "Enter") search91pu();
   });
   els.demoSongButton.addEventListener("click", loadDemoSong);
+  els.uploadChartButton.addEventListener("click", () => {
+    const drawer = els.imageInput.closest("details");
+    if (drawer) drawer.open = true;
+    els.imageInput.click();
+  });
+  els.editSourceShortcut.addEventListener("click", () => {
+    document.getElementById("sourceSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => els.sourceText.focus(), 250);
+  });
   els.arrangementButton.addEventListener("click", analyzeArrangement);
   els.arrangementStyle.addEventListener("change", () => {
     const style = els.arrangementStyle.value;
@@ -776,10 +787,12 @@ function renderSearchResults(data) {
   }
 
   els.searchResults.innerHTML = results.map((item) => `
-    <div class="result-item">
-      <div>
+    <article class="result-item">
+      <div class="result-art" aria-hidden="true"><i data-lucide="music-2"></i></div>
+      <div class="result-copy">
         <div class="result-title">${escapeHtml(item.title)}</div>
-        <div class="result-meta">${escapeHtml([item.artist, item.lyricist, item.composer].filter(Boolean).join(" / "))}<span class="search-match">${item.matchType === "lyric" ? "歌詞符合" : "歌名／歌手"}</span></div>
+        <div class="result-meta">${escapeHtml(item.artist || "歌手未提供")}<span class="search-match">${item.matchType === "lyric" ? "歌詞符合" : "歌名／歌手"}</span></div>
+        ${item.composer || item.lyricist ? `<div class="result-credits">${escapeHtml([item.lyricist, item.composer].filter(Boolean).join(" / "))}</div>` : ""}
       </div>
       <div class="result-actions">
         <a class="icon-button" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="在 91譜開啟" aria-label="在 91譜開啟">
@@ -789,7 +802,7 @@ function renderSearchResults(data) {
           <i data-lucide="download-cloud"></i><span>匯入</span>
         </button>
       </div>
-    </div>
+    </article>
   `).join("");
 
   els.searchResults.querySelectorAll("[data-import]").forEach((button) => {
@@ -1892,7 +1905,7 @@ function triggerDownload(url, filename) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 function normalizeSource(source) {

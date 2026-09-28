@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>91吉他譜 ➜ 雙手/單手鋼琴伴奏轉譜器</title>
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#19191b">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/app-icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,30 +37,40 @@
   <div class="app-shell">
     <aside class="workspace-panel">
       <header class="brand-row">
-        <div>
-          <h1>91吉他譜 ➜ 鋼琴伴奏轉譜器</h1>
-          <p>輸入歌名或吉他譜，產生雙手與單手鋼琴伴奏譜。</p>
-        </div>
-        <span class="status-pill" id="networkStatus">就緒</span>
+        <a class="brand-lockup" href="#song-search" aria-label="前往歌曲搜尋">
+          <span class="brand-mark" aria-hidden="true">91</span>
+          <span>
+            <strong>譜伴</strong>
+            <small>GUITAR TO PIANO</small>
+          </span>
+        </a>
       </header>
 
-      <section class="control-block primary-control">
+      <nav class="side-navigation" aria-label="工作區導覽">
+        <a class="active" href="#song-search"><i data-lucide="search"></i><span>搜尋歌曲</span></a>
+        <a href="#sourceSection"><i data-lucide="piano"></i><span>和弦與轉譜</span></a>
+        <a href="#imageDrawer"><i data-lucide="image"></i><span>圖片辨識</span></a>
+        <a href="#score-preview"><i data-lucide="music-2"></i><span>伴奏譜預覽</span></a>
+      </nav>
+
+      <section class="control-block source-block main-source" id="sourceSection">
         <div class="label-row">
-          <label for="searchInput">搜尋 91譜</label>
-          <button class="icon-button compact" id="demoSongButton" type="button">
-            <i data-lucide="sparkles"></i><span>範例</span>
+          <label for="sourceText">和弦 / 歌詞</label>
+          <button class="icon-button primary" id="parseButton" type="button">
+            <i data-lucide="wand-sparkles"></i><span>轉譜</span>
           </button>
         </div>
-        <div class="input-row">
-          <input id="searchInput" type="search" placeholder="歌名、歌詞、歌手，或直接貼上 91譜連結">
-          <button class="icon-button primary" id="searchButton" type="button">
-            <i data-lucide="search"></i><span>搜尋</span>
+        <textarea id="sourceText" spellcheck="false" placeholder="貼上已取得的吉他和弦譜或歌詞和弦"></textarea>
+        <div class="source-actions">
+          <button class="icon-button" id="clearWorkspaceButton" type="button">
+            <i data-lucide="eraser"></i><span>清空草稿</span>
           </button>
+          <span class="draft-note">草稿自動儲存在此裝置</span>
         </div>
-        <div class="result-list" id="searchResults"></div>
+        <div class="score-stats" id="scoreStats"></div>
       </section>
 
-      <section class="control-block arrangement-block">
+      <section class="control-block arrangement-block" id="arrangementSettings">
         <div class="label-row">
           <label for="arrangementStyle">智慧伴奏建議</label>
           <button class="icon-button compact primary" id="arrangementButton" type="button">
@@ -77,24 +87,7 @@
         <div class="arrangement-insight" id="arrangementInsight" aria-live="polite">匯入歌曲後可分析速度、拍號與和弦，選擇適合的鋼琴伴奏。</div>
       </section>
 
-      <section class="control-block source-block main-source">
-        <div class="label-row">
-          <label for="sourceText">和弦/歌詞</label>
-          <div class="inline-actions">
-            <button class="icon-button primary" id="parseButton" type="button">
-              <i data-lucide="refresh-cw"></i><span>轉譜</span>
-            </button>
-            <button class="icon-button" id="clearWorkspaceButton" type="button">
-              <i data-lucide="eraser"></i><span>清空</span>
-            </button>
-          </div>
-        </div>
-        <textarea id="sourceText" spellcheck="false" placeholder="[前奏] |Cmaj7 |D |Bm7 |Em |
-1.親愛的你躲在哪裡發呆    有甚麼心事還無法釋懷"></textarea>
-        <div class="score-stats" id="scoreStats"></div>
-      </section>
-
-      <details class="tool-drawer">
+      <details class="tool-drawer" id="imageDrawer">
         <summary>
           <span>圖片辨識</span>
           <small>OCR</small>
@@ -132,7 +125,7 @@
         </div>
       </details>
 
-      <details class="tool-drawer">
+      <details class="tool-drawer" id="songMetadataDrawer">
         <summary>
           <span>歌曲資料</span>
           <small>調性/速度</small>
@@ -159,7 +152,7 @@
         </div>
       </details>
 
-      <details class="tool-drawer">
+      <details class="tool-drawer" id="remoteControls">
         <summary>
           <span>遠端與多人</span>
           <small>手機/電腦/網頁</small>
@@ -231,12 +224,53 @@
         </div>
       </details>
 
-      <section class="control-block compact-note">
-        <p class="hint-line">草稿會自動保存在這台裝置。</p>
-      </section>
     </aside>
 
     <main class="preview-panel">
+      <header class="page-topbar">
+        <div class="page-heading">
+          <span class="eyebrow">91PU GUITAR → PIANO</span>
+          <h1>鋼琴伴奏工作台</h1>
+        </div>
+        <div class="topbar-actions">
+          <span class="status-pill" id="networkStatus">就緒</span>
+          <button class="icon-button demo-button" id="demoSongButton" type="button">
+            <i data-lucide="sparkles"></i><span>載入範例</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="song-search-section" id="song-search">
+        <div class="search-heading">
+          <div>
+            <h2>搜尋歌曲或匯入吉他譜</h2>
+            <p>輸入歌名、歌手、歌詞，或貼上 91譜歌曲網址。</p>
+          </div>
+          <span class="source-badge"><i data-lucide="radio"></i> 91譜曲庫</span>
+        </div>
+        <div class="search-bar">
+          <label class="visually-hidden" for="searchInput">搜尋歌曲、歌手或 91譜網址</label>
+          <i data-lucide="search" aria-hidden="true"></i>
+          <input id="searchInput" type="search" placeholder="例如：歌名、歌手、歌詞，或貼上 91譜連結">
+          <button class="icon-button primary" id="searchButton" type="button">
+            <span>搜尋</span><i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+        <button class="upload-shortcut" id="uploadChartButton" type="button">
+          <i data-lucide="image-plus"></i><span>上傳或貼上吉他譜圖片</span>
+        </button>
+        <button class="text-shortcut" id="editSourceShortcut" type="button">直接貼上和弦文字</button>
+        <p class="access-note"><i data-lucide="info"></i><span>公開和弦譜可直接匯入。若歌曲需要 91譜權限，請在原站取得內容後上傳譜圖或貼上和弦文字。</span></p>
+        <div class="results-heading"><h3>搜尋結果</h3><span>選擇曲目後即可轉譜</span></div>
+        <div class="result-list" id="searchResults" aria-live="polite">
+          <div class="search-empty-state">
+            <img src="./samples/sample-guitar.jpg" alt="吉他譜圖片範例">
+            <div><strong>輸入歌名，或從你的吉他譜開始</strong><span>公開曲譜可搜尋匯入，也可以貼圖辨識或貼上和弦文字。</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="score-workspace" id="score-preview">
       <div class="toolbar">
         <div class="segmented" aria-label="預覽模式">
           <button id="showBothButton" class="active" type="button">雙頁</button>
@@ -271,6 +305,7 @@
         <article class="paper score-paper accompaniment-mode" id="sheet-accompaniment"></article>
         <article class="paper score-paper chord-mode" id="sheet-chord"></article>
       </div>
+      </section>
     </main>
   </div>
 </body>
